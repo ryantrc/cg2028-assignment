@@ -7,6 +7,7 @@
 
 /*--------------------------- Includes ---------------------------------------*/
 #include "main.h"
+#include "motion_metrics.h"
 #include "../../Drivers/BSP/B-L4S5I-IOT01/stm32l4s5i_iot01_accelero.h"
 #include "../../Drivers/BSP/B-L4S5I-IOT01/stm32l4s5i_iot01_gyro.h"
 
@@ -16,16 +17,18 @@
 #include <sys/stat.h>
 
 /*--------------------------- Configuration ----------------------------------*/
-#define EWMA_ALPHA_ACCEL_PERCENT   25
-#define EWMA_ALPHA_GYRO_PERCENT    25
-#define NORMAL_LED_DELAY_MS       1000
-#define FALL_LED_DELAY_MS          150
+#define EWMA_ALPHA_ACCEL_PERCENT 25
+#define EWMA_ALPHA_GYRO_PERCENT 25
+#define SAMPLE_INTERVAL_MS 100
+#define NORMAL_LED_DELAY_MS 1000
+#define FALL_LED_DELAY_MS 150
 
 static void UART1_Init(void);
 static void UART_Send(const char *text);
+static void FormatMetric(char *text, size_t size, bool valid, double value);
 
 extern int ewma_filter(int new_data, int old_output, int alpha_percent);
-//int ewma_filter_C(int new_data, int old_output, int alpha_percent);
+int ewma_filter_C(int new_data, int old_output, int alpha_percent);
 
 UART_HandleTypeDef huart1;
 
@@ -41,20 +44,45 @@ int main(void)
 
     /* Previous EWMA outputs. The first test/application sample starts from 0. */
     int accel_ewma_asm[3] = {0, 0, 0};
-    int gyro_ewma_asm[3]  = {0, 0, 0};
+    int gyro_ewma_asm[3] = {0, 0, 0};
 
     /* Reference C states are kept separately for assembly verification. */
     int accel_ewma_c[3] = {0, 0, 0};
-    int gyro_ewma_c[3]  = {0, 0, 0};
+    int gyro_ewma_c[3] = {0, 0, 0};
 
     unsigned long sample_number = 0;
+    MotionMetricsState accel_metrics_state = {0};
+    MotionMetricsState gyro_metrics_state = {0};
+    uint32_t last_sample_ms = HAL_GetTick() - SAMPLE_INTERVAL_MS;
+    uint32_t last_led_ms = HAL_GetTick();
+    int fall_detected = 0;
 
     while (1)
     {
+        /* LED timing is independent of sensor sampling: a slow blink must
+         * not stop sensor reads for a whole second. */
+        uint32_t now_ms = HAL_GetTick();
+        uint32_t led_interval_ms = fall_detected ? FALL_LED_DELAY_MS : NORMAL_LED_DELAY_MS;
+        if ((uint32_t)(now_ms - last_led_ms) >= led_interval_ms)
+        {
+            BSP_LED_Toggle(LED2);
+            last_led_ms = now_ms;
+        }
+        if ((uint32_t)(now_ms - last_sample_ms) < SAMPLE_INTERVAL_MS)
+        {
+            HAL_Delay(1);
+            continue;
+        }
+
         int16_t accel_raw_i16[3] = {0, 0, 0};
         float gyro_raw_float[3] = {0.0f, 0.0f, 0.0f};
         int gyro_raw_int[3] = {0, 0, 0};
 
+        /* Timestamp the start of this pair of sensor reads. Restart scheduling
+         * from the actual acquisition time, without bursts to catch up after
+         * a debug pause or a slow iteration. Slopes use the actual tick times. */
+        uint32_t sample_time_ms = HAL_GetTick();
+        last_sample_ms = sample_time_ms;
         BSP_ACCELERO_AccGetXYZ(accel_raw_i16);
         BSP_GYRO_GetXYZ(gyro_raw_float);
 
@@ -64,6 +92,7 @@ int main(void)
         for (int axis = 0; axis < 3; axis++)
         {
             gyro_raw_int[axis] = (int)gyro_raw_float[axis];
+            // convert float to int, truncating the decimal part
 
             accel_ewma_asm[axis] = ewma_filter(
                 (int)accel_raw_i16[axis],
@@ -75,6 +104,8 @@ int main(void)
                 gyro_ewma_asm[axis],
                 EWMA_ALPHA_GYRO_PERCENT);
 
+            /* get accelerometer and gyroscope filtered values */
+
             accel_ewma_c[axis] = ewma_filter_C(
                 (int)accel_raw_i16[axis],
                 accel_ewma_c[axis],
@@ -84,30 +115,56 @@ int main(void)
                 gyro_raw_int[axis],
                 gyro_ewma_c[axis],
                 EWMA_ALPHA_GYRO_PERCENT);
+
+            /* verify with C implementation */
         }
 
         /* Accelerometer filtered readings are in meters per second squared. */
         float accel_mps2[3] = {
             accel_ewma_asm[0] * (9.80665f / 1000.0f),
             accel_ewma_asm[1] * (9.80665f / 1000.0f),
-            accel_ewma_asm[2] * (9.80665f / 1000.0f)
-        };
+            accel_ewma_asm[2] * (9.80665f / 1000.0f)};
 
         /* Gyroscope filtered readings are in degrees per second. */
         float gyro_dps[3] = {
             gyro_ewma_asm[0] / 1000.0f,
             gyro_ewma_asm[1] / 1000.0f,
-            gyro_ewma_asm[2] / 1000.0f
-        };
+            gyro_ewma_asm[2] / 1000.0f};
 
-        char buffer[320];
+        /* Arithmetic average across X, Y and Z for the current sample. */
+        float accel_avg_mps2 = (accel_mps2[0] + accel_mps2[1] + accel_mps2[2]) / 3.0f;
+        float gyro_avg_dps = (gyro_dps[0] + gyro_dps[1] + gyro_dps[2]) / 3.0f;
+
+        /* MSD = mean of the three squared changes since the previous sample.
+         * AvgSlope and MSDSlope fit a straight line to their latest five
+         * readings against actual sample times. Positive slopes mean rising
+         * values; negative slopes mean falling values. Startup fields remain
+         * NA until their complete five-point windows are available.
+         * Acceleration MSD uses (m/s^2)^2; gyro MSD uses (degrees/s)^2.
+         * Each corresponding slope adds a further division by seconds. */
+        MotionMetrics accel_metrics = MotionMetrics_Update(
+            &accel_metrics_state, accel_mps2, accel_avg_mps2, sample_time_ms);
+        MotionMetrics gyro_metrics = MotionMetrics_Update(
+            &gyro_metrics_state, gyro_dps, gyro_avg_dps, sample_time_ms);
+        char accel_msd[24], accel_avg_slope[24], accel_msd_slope[24];
+        char gyro_msd[24], gyro_avg_slope[24], gyro_msd_slope[24];
+        FormatMetric(accel_msd, sizeof(accel_msd), accel_metrics.msd_valid, accel_metrics.msd);
+        FormatMetric(accel_avg_slope, sizeof(accel_avg_slope), accel_metrics.average_slope_valid, accel_metrics.average_slope);
+        FormatMetric(accel_msd_slope, sizeof(accel_msd_slope), accel_metrics.msd_slope_valid, accel_metrics.msd_slope);
+        FormatMetric(gyro_msd, sizeof(gyro_msd), gyro_metrics.msd_valid, gyro_metrics.msd);
+        FormatMetric(gyro_avg_slope, sizeof(gyro_avg_slope), gyro_metrics.average_slope_valid, gyro_metrics.average_slope);
+        FormatMetric(gyro_msd_slope, sizeof(gyro_msd_slope), gyro_metrics.msd_slope_valid, gyro_metrics.msd_slope);
+
+        char buffer[512];
         snprintf(buffer, sizeof(buffer),
-                 "Sample %lu\r\n"
-                 "Accel EWMA ASM [m/s^2]: X=%8.3f Y=%8.3f Z=%8.3f\r\n"
-                 "Gyro  EWMA ASM [dps]  : X=%8.3f Y=%8.3f Z=%8.3f\r\n",
-                 sample_number,
-                 accel_mps2[0], accel_mps2[1], accel_mps2[2],
-                 gyro_dps[0], gyro_dps[1], gyro_dps[2]);
+                 "Sample %lu TimeMs=%lu SlopeWindow=%u\r\n"
+                 "Accel EWMA ASM [m/s^2]: X=%8.3f Y=%8.3f Z=%8.3f Avg=%8.3f MSD=%s AvgSlope=%s MSDSlope=%s\r\n"
+                 "Gyro  EWMA ASM [dps]  : X=%8.3f Y=%8.3f Z=%8.3f Avg=%8.3f MSD=%s AvgSlope=%s MSDSlope=%s\r\n",
+                 sample_number, (unsigned long)sample_time_ms, MOTION_SLOPE_WINDOW_SAMPLES,
+                 accel_mps2[0], accel_mps2[1], accel_mps2[2], accel_avg_mps2,
+                 accel_msd, accel_avg_slope, accel_msd_slope,
+                 gyro_dps[0], gyro_dps[1], gyro_dps[2], gyro_avg_dps,
+                 gyro_msd, gyro_avg_slope, gyro_msd_slope);
         UART_Send(buffer);
 
         /* Optional debugging check. This confirms that the assembly routine
@@ -130,12 +187,23 @@ int main(void)
          *    a fall is detected.
          *********************************************************************/
 
-        int fall_detected = 0;  /* TODO: replace with your fall-detection logic */
-
-        BSP_LED_Toggle(LED2);
-        HAL_Delay(fall_detected ? FALL_LED_DELAY_MS : NORMAL_LED_DELAY_MS);
+        fall_detected = 0; /* TODO: replace with your fall-detection logic */
 
         sample_number++;
+    }
+}
+
+static void FormatMetric(char *text, size_t size, bool valid, double value)
+{
+    if (valid)
+    {
+        /* Scientific notation preserves small squared changes that would
+         * disappear if rounded to six decimal places in fixed notation. */
+        snprintf(text, size, "%.6e", value);
+    }
+    else
+    {
+        snprintf(text, size, "NA");
     }
 }
 
@@ -143,8 +211,7 @@ int ewma_filter_C(int new_data, int old_output, int alpha_percent)
 {
     /* Reference implementation for verification only. The assembly routine
      * must be used in the actual sensor-processing and detection pipeline. */
-    int numerator = alpha_percent * new_data
-                  + (100 - alpha_percent) * old_output;
+    int numerator = alpha_percent * new_data + (100 - alpha_percent) * old_output;
     return numerator / 100;
 }
 
@@ -179,7 +246,9 @@ static void UART1_Init(void)
 
     if (HAL_UART_Init(&huart1) != HAL_OK)
     {
-        while (1) { }
+        while (1)
+        {
+        }
     }
 }
 
@@ -190,10 +259,40 @@ int _write(int file, char *ptr, int len)
     (void)ptr;
     return len;
 }
-int _read(int file, char *ptr, int len) { (void)file; (void)ptr; (void)len; return 0; }
-int _fstat(int file, struct stat *st) { (void)file; (void)st; return 0; }
-int _lseek(int file, int ptr, int dir) { (void)file; (void)ptr; (void)dir; return 0; }
-int _isatty(int file) { (void)file; return 1; }
-int _close(int file) { (void)file; return -1; }
+int _read(int file, char *ptr, int len)
+{
+    (void)file;
+    (void)ptr;
+    (void)len;
+    return 0;
+}
+int _fstat(int file, struct stat *st)
+{
+    (void)file;
+    (void)st;
+    return 0;
+}
+int _lseek(int file, int ptr, int dir)
+{
+    (void)file;
+    (void)ptr;
+    (void)dir;
+    return 0;
+}
+int _isatty(int file)
+{
+    (void)file;
+    return 1;
+}
+int _close(int file)
+{
+    (void)file;
+    return -1;
+}
 int _getpid(void) { return 1; }
-int _kill(int pid, int sig) { (void)pid; (void)sig; return -1; }
+int _kill(int pid, int sig)
+{
+    (void)pid;
+    (void)sig;
+    return -1;
+}

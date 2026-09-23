@@ -1,0 +1,5 @@
+# Local measurements; share recordings deliberately rather than with every commit.
+/data/*.sqlite3
+/data/*.sqlite3-*
+/data/*.csv
+/tools/__pycache__/
