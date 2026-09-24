@@ -1,0 +1,20 @@
+{
+  "input_sha256": {
+    "activity_readings.sqlite3": "880c94c891956bc5befc749bf5d3ee1a588c8f416737287a463aec6ae846a8ba",
+    "activity_readings.csv": "c9310734ffbf14522e08f3d6afe5d8559b3b8ee9da99b418b3661aec2ce43977"
+  },
+  "source_files_unchanged": true,
+  "csv_matches_database": true,
+  "level6_rows": 1506,
+  "nonzero_motion_sessions": [
+    26
+  ],
+  "invalid_zero_sessions": [
+    28,
+    29,
+    30,
+    31
+  ],
+  "invalid_zero_rows": 1207,
+  "caveat": "No fall-detection accuracy established. Four all-zero runs excluded from motion interpretation only; no recorded data deleted."
+}

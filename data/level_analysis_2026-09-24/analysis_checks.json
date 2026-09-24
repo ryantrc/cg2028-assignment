@@ -1,0 +1,18 @@
+{
+  "input_sha256": {
+    "activity_readings.sqlite3": "47cedc55f4353effa596de606fa023f75221991c6b85dddebd8aaad36a5a8422",
+    "activity_readings.csv": "477a49c7efd8ec4154a130db9ef1c65e39511ac1a8cbbea1cfcb36e332b9e0fe"
+  },
+  "sessions": 20,
+  "samples": 5974,
+  "sample_counters_consecutive": true,
+  "all_intervals_100_or_101_ms": true,
+  "csv_matches_database": true,
+  "all_numeric_values_finite": true,
+  "recording_setup_confirmed_by_user": "Level1 rested on table; Levels2\u20134 moved by hand.",
+  "firmware_configuration": "100ms polling,115200baud,EWMA25%,five-point slopes.",
+  "trial_summary_unit": "One entire recording; five recordings per level.",
+  "window_definition": "Nonoverlapping [start,start+1s) bins from first board tick; exclude partly observed last bin.",
+  "first_saved_slope_caveat": "Firmware windows may contain pre-recording readings for initial rows.",
+  "unchanged_original_files": true
+}

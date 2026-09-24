@@ -228,6 +228,8 @@ typedef enum
 /** @defgroup STM32L4S5I_IOT01_LOW_LEVEL_Exported_Functions LOW LEVEL Exported Functions
   * @{
   */
+/* Compare before/after BSP sensor calls to reject failed I2C acquisitions. */
+uint32_t         BSP_SENSOR_IO_GetErrorCount(void);
 uint32_t         BSP_GetVersion(void);  
 void             BSP_LED_Init(Led_TypeDef Led);
 void             BSP_LED_DeInit(Led_TypeDef Led);

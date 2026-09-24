@@ -82,6 +82,14 @@ const uint16_t COM_RX_AF[COMn] = {DISCOVERY_COM1_RX_AF};
 I2C_HandleTypeDef hI2cHandler;
 UART_HandleTypeDef hDiscoUart;
 
+/* Application-visible failures, including errors recovered inside the BSP. */
+static uint32_t sensor_io_error_count;
+
+uint32_t BSP_SENSOR_IO_GetErrorCount(void)
+{
+  return sensor_io_error_count;
+}
+
 /**
   * @}
   */
@@ -513,6 +521,7 @@ static HAL_StatusTypeDef I2Cx_IsDeviceReady(I2C_HandleTypeDef *i2c_handler, uint
   */
 static void I2Cx_Error(I2C_HandleTypeDef *i2c_handler, uint8_t Addr)
 {
+  sensor_io_error_count++;
   /* De-initialize the I2C communication bus */
   HAL_I2C_DeInit(i2c_handler);
   

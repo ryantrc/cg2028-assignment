@@ -1,0 +1,6 @@
+session_id,trial_in_notes,samples,span_s,min_interval_ms,max_interval_ms,nonconsecutive_sample_steps,all_measurements_finite,all_sensor_fields_zero,status,first_board_time_ms,first_board_sample
+26,26,299,30.047,100,101,0,True,False,nonzero_motion_stream,6002580,59730
+28,27,302,30.1,100,100,0,True,True,invalid_all_zero_sensor_stream,32507,325
+29,28,302,30.1,100,100,0,True,True,invalid_all_zero_sensor_stream,138007,1380
+30,29,302,30.1,100,100,0,True,True,invalid_all_zero_sensor_stream,201507,2015
+31,30,301,30.0,100,100,0,True,True,invalid_all_zero_sensor_stream,386407,3864
