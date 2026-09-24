@@ -1,0 +1,20 @@
+{
+  "input_sha256": {
+    "activity_readings.sqlite3": "ed89ac030313d8027d695fd3021fcee0ab293799b1e78fb1114504315ae4a718",
+    "activity_readings.csv": "f3358ffa33c8d70faafac9db77f1a9eb40c29fa46783f0717e783a3cdf69af99"
+  },
+  "csv_matches_database": true,
+  "source_files_unchanged": true,
+  "total_samples": 8968,
+  "level6_samples": 1499,
+  "level6_nonzero_sessions": [
+    26,
+    27,
+    28,
+    29,
+    30
+  ],
+  "timing_exclusion": "Session27 first two rows (record_ids9153,9154) retained in originals but excluded from continuous-segment summaries.",
+  "gap_handling": "Split on >150ms or nonconsecutive/restarted sample count; never interpolate or recompute metrics across a gap.",
+  "data_identity": "Replacement sessions27\u201330 started after09:08UTC; distinct from deleted zero recordings with reused session IDs."
+}

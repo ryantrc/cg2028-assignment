@@ -1,0 +1,19 @@
+{
+  "input_sha256": {
+    "activity_readings.sqlite3": "0fe0f5610f60831ed64d27be05ff408f5bb30172b0e8aa3521362681b00f8c3c",
+    "activity_readings.csv": "e87f112a0d7ae0bc2f55af0029e2e6b72dcda21b102fde7bb28639018a8c2622"
+  },
+  "total_sessions_compared": 25,
+  "total_samples_compared": 7469,
+  "new_sessions": 5,
+  "new_samples": 1495,
+  "csv_matches_database": true,
+  "all_values_finite": true,
+  "all_intervals_100_or_101_ms": true,
+  "all_sample_counters_consecutive": true,
+  "source_files_unchanged": true,
+  "unit_of_repetition": "One recording, five Level 5 recordings; individual samples are not independent trials.",
+  "confirmed_setup": "Level1 table rest; Levels2\u20134 hand movement. Level5 normal hand motion, fast upward lift, downward placement on table, then rest, around halfway through each run.",
+  "event_caveat": "Exceedance times are calculated from the data, not externally annotated fall start/end times.",
+  "filter": "Existing integer EWMA alpha25%, ~10Hz sampling, five-point slopes; no configuration changes."
+}

@@ -1,0 +1,39 @@
+{
+  "input_sha256": {
+    "activity_readings.sqlite3": "37c577b2bf3514babae2092a1559234738f2a42d7512708a4726a6265a5c82e9",
+    "activity_readings.csv": "b62b87b455b025a464968e18c92e5a529d5131b60c0bb3963591e4514d4cfa01"
+  },
+  "csv_matches_database": true,
+  "original_files_unchanged": true,
+  "comparison_sessions": [
+    21,
+    22,
+    23,
+    24,
+    25,
+    26,
+    27,
+    28,
+    29,
+    30,
+    31,
+    32,
+    33,
+    34,
+    35
+  ],
+  "new_sessions": [
+    31,
+    32,
+    33,
+    34,
+    35
+  ],
+  "new_saved_samples": 1497,
+  "new_main_segment_samples": 1495,
+  "event_definition": "Largest acceleration-MSD sample in longest continuous segment, selected retrospectively.",
+  "window_definition": "Means over [peak+start,peak+end), all windows fully observed; sensitivity windows1\u20133,3\u20138,5\u201310seconds.",
+  "recording_setup": "User confirmed Level7 board held throughout spike and continued movement, without table contact.",
+  "quality_caveat": "Two stale-looking leading frames in sessions27 and31 excluded from timing only; originals preserved.",
+  "interpretation": "Descriptive gesture separation only; no accuracy estimate or verified online threshold."
+}
