@@ -662,6 +662,10 @@ def record(args):
                     if sample is None:
                         if line.startswith(b"WARNING:"):
                             print(line.decode("ascii", errors="replace").strip(), file=sys.stderr)
+                        elif line.startswith(b"DETECTOR "):
+                            # Show firmware decisions/status without changing
+                            # the measurement-only SQLite/CSV schema or labels.
+                            print(line.decode("ascii", errors="replace").strip(), flush=True)
                         continue
                     if last_number is not None and sample["sample_number"] <= last_number:
                         print("Board sample counter restarted; keeping new rows with unique database IDs.", flush=True)

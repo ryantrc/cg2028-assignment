@@ -1445,6 +1445,18 @@ class RecordingDurationTests(unittest.TestCase):
         self.assertEqual(len(timeouts), 1)
         self.assertAlmostEqual(stopped, 100.1)
 
+    def test_detector_messages_are_visible_without_becoming_saved_samples(self):
+        messages = [
+            b"DETECTOR TimeMs=10 State=SENSOR_FAULT Alarm=0 Sensors=FAULT Event=SENSOR_FAULT invalid data\n",
+            b"DETECTOR TimeMs=8000 State=FALL_LATCHED Alarm=1 Sensors=OK Event=POSSIBLE_FALL reset board\n",
+        ]
+        numbers, _, _, output = self.run_timed_recording([
+            (0.1, messages[0] + self.frame(10) + messages[1] + self.frame(11)),
+        ])
+        self.assertEqual(numbers, [10, 11])
+        for message in messages:
+            self.assertIn(message.decode("ascii").strip(), output)
+
 
 @unittest.skipUnless(os.name == "posix", "Console repair requires POSIX terminals")
 class ConsoleInterruptTests(unittest.TestCase):

@@ -8,10 +8,12 @@
 /*--------------------------- Includes ---------------------------------------*/
 #include "main.h"
 #include "motion_metrics.h"
+#include "fall_detector.h"
 #include "../../Drivers/BSP/B-L4S5I-IOT01/stm32l4s5i_iot01_accelero.h"
 #include "../../Drivers/BSP/B-L4S5I-IOT01/stm32l4s5i_iot01_gyro.h"
 
 #include <stdint.h>
+#include <limits.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/stat.h>
@@ -26,6 +28,13 @@
 static void UART1_Init(void);
 static void UART_Send(const char *text);
 static void FormatMetric(char *text, size_t size, bool valid, double value);
+static void ResetMotionProcessing(int accel_asm[3], int gyro_asm[3],
+                                  int accel_c[3], int gyro_c[3],
+                                  MotionMetricsState *accel_history,
+                                  MotionMetricsState *gyro_history);
+static void ReportDetectorStatus(const FallDetector *detector, FallDetectorEvent event,
+                                 uint32_t now_ms, bool sensors_valid,
+                                 uint32_t *last_report_ms);
 
 extern int ewma_filter(int new_data, int old_output, int alpha_percent);
 int ewma_filter_C(int new_data, int old_output, int alpha_percent);
@@ -38,8 +47,13 @@ int main(void)
     UART1_Init();
 
     BSP_LED_Init(LED2);
-    BSP_ACCELERO_Init();
-    BSP_GYRO_Init();
+    /* The BSP can leave a driver uninitialized after a failed sensor-ID read.
+     * Check both return values AND errors hidden by its I2C recovery routine. */
+    uint32_t init_errors = BSP_SENSOR_IO_GetErrorCount();
+    ACCELERO_StatusTypeDef accel_status = BSP_ACCELERO_Init();
+    GYRO_StatusTypeDef gyro_status = BSP_GYRO_Init();
+    bool sensors_ready = (accel_status == ACCELERO_OK) && (gyro_status == GYRO_OK)
+                      && (BSP_SENSOR_IO_GetErrorCount() == init_errors);
     BSP_LED_Off(LED2);
 
     /* Previous EWMA outputs. The first test/application sample starts from 0. */
@@ -55,14 +69,18 @@ int main(void)
     MotionMetricsState gyro_metrics_state = {0};
     uint32_t last_sample_ms = HAL_GetTick() - SAMPLE_INTERVAL_MS;
     uint32_t last_led_ms = HAL_GetTick();
-    int fall_detected = 0;
+    uint32_t last_report_ms = HAL_GetTick() - 1000U;
+    uint32_t previous_read_ms = 0;
+    bool has_previous_read = false;
+    FallDetector detector;
+    FallDetector_Init(&detector);
 
     while (1)
     {
         /* LED timing is independent of sensor sampling: a slow blink must
          * not stop sensor reads for a whole second. */
         uint32_t now_ms = HAL_GetTick();
-        uint32_t led_interval_ms = fall_detected ? FALL_LED_DELAY_MS : NORMAL_LED_DELAY_MS;
+        uint32_t led_interval_ms = detector.fall_latched ? FALL_LED_DELAY_MS : NORMAL_LED_DELAY_MS;
         if ((uint32_t)(now_ms - last_led_ms) >= led_interval_ms)
         {
             BSP_LED_Toggle(LED2);
@@ -83,8 +101,68 @@ int main(void)
          * a debug pause or a slow iteration. Slopes use the actual tick times. */
         uint32_t sample_time_ms = HAL_GetTick();
         last_sample_ms = sample_time_ms;
-        BSP_ACCELERO_AccGetXYZ(accel_raw_i16);
-        BSP_GYRO_GetXYZ(gyro_raw_float);
+        bool sample_gap = has_previous_read &&
+            (uint32_t)(sample_time_ms - previous_read_ms) > FALL_MAX_SAMPLE_GAP_MS;
+        previous_read_ms = sample_time_ms;
+        has_previous_read = true;
+
+        if (sample_gap)
+        {
+            /* Do not compute an axis difference across a debug pause/read gap. */
+            ResetMotionProcessing(accel_ewma_asm, gyro_ewma_asm,
+                                  accel_ewma_c, gyro_ewma_c,
+                                  &accel_metrics_state, &gyro_metrics_state);
+        }
+
+        bool sample_valid = sensors_ready;
+        if (sensors_ready)
+        {
+            uint32_t read_errors = BSP_SENSOR_IO_GetErrorCount();
+            BSP_ACCELERO_AccGetXYZ(accel_raw_i16);
+            BSP_GYRO_GetXYZ(gyro_raw_float);
+            if (BSP_SENSOR_IO_GetErrorCount() != read_errors)
+            {
+                /* Require a board reset/reinitialization after a bus failure.
+                 * Restarting the Python recorder cannot repair sensor setup. */
+                sensors_ready = false;
+                sample_valid = false;
+            }
+        }
+
+        bool all_axes_zero = true;
+        for (int axis = 0; axis < 3; axis++)
+        {
+            if (accel_raw_i16[axis] != 0 || gyro_raw_float[axis] != 0.0f)
+                all_axes_zero = false;
+            /* Check before converting a float to int. Invalid readings must
+             * never become false evidence of stillness or enter the EWMA. */
+            if (!isfinite(gyro_raw_float[axis]) ||
+                gyro_raw_float[axis] >= (float)INT_MAX ||
+                gyro_raw_float[axis] <= (float)INT_MIN)
+            {
+                sample_valid = false;
+                sensors_ready = false;
+            }
+        }
+        if (all_axes_zero ||
+            (uint32_t)(HAL_GetTick() - sample_time_ms) > FALL_MAX_SAMPLE_GAP_MS)
+            sample_valid = false;
+
+        FallDetectorInput detector_input = {0};
+        detector_input.time_ms = sample_time_ms;
+        detector_input.valid = sample_valid;
+        if (!sample_valid)
+        {
+            ResetMotionProcessing(accel_ewma_asm, gyro_ewma_asm,
+                                  accel_ewma_c, gyro_ewma_c,
+                                  &accel_metrics_state, &gyro_metrics_state);
+            FallDetectorEvent event = FallDetector_Update(&detector, &detector_input);
+            ReportDetectorStatus(&detector, event, HAL_GetTick(), false, &last_report_ms);
+            /* A missing measurement is not a zero measurement: do not send
+             * a Sample/Accel/Gyro frame that the recorder could save as data. */
+            sample_number++;
+            continue;
+        }
 
         /* The supplied BSP reports gyroscope readings as floating-point raw
          * values. Convert them to signed integers before passing them to the
@@ -144,6 +222,22 @@ int main(void)
             &accel_metrics_state, accel_mps2, sample_time_ms);
         MotionMetrics gyro_metrics = MotionMetrics_Update(
             &gyro_metrics_state, gyro_dps, sample_time_ms);
+
+        /* Prototype 1: first acceleration-MSD crossing starts the timer.
+         * Sampling continues during the eight seconds. The helper checks
+         * [5,6), [6,7), [7,8) second averages, extending one block at a time
+         * if uncertain. Both sensors must agree; a fall stays latched. */
+        detector_input.msd_valid = accel_metrics.msd_valid && gyro_metrics.msd_valid;
+        detector_input.accel_msd = accel_metrics.msd;
+        detector_input.gyro_msd = gyro_metrics.msd;
+        detector_input.gyro_magnitude = gyro_metrics.magnitude;
+        FallDetectorEvent detector_event = FallDetector_Update(&detector, &detector_input);
+        if (detector_event == FALL_EVENT_FALL)
+        {
+            BSP_LED_On(LED2);
+            last_led_ms = HAL_GetTick();
+        }
+
         char accel_msd[24], accel_magnitude_slope[24], accel_msd_slope[24];
         char gyro_msd[24], gyro_magnitude_slope[24], gyro_msd_slope[24];
         FormatMetric(accel_msd, sizeof(accel_msd), accel_metrics.msd_valid, accel_metrics.msd);
@@ -177,18 +271,63 @@ int main(void)
             UART_Send("WARNING: Assembly and C EWMA outputs do not match.\r\n");
         }
 
-        /**************** Elderly wearable state logic starts here************************
-         * Compulsory requirements:
-         * 1. Use filtered accelerometer AND gyroscope readings.
-         * 2. Distinguish normal activity, near-fall movements, and a real fall.
-         * 3. Use a slow LED blink for normal operation and a fast blink after
-         *    a fall is detected.
-         *********************************************************************/
-
-        fall_detected = 0; /* TODO: replace with your fall-detection logic */
+        /* Diagnostics are separate lines so the existing 22-column recording
+         * format remains unchanged. The one-second status also helps a serial
+         * viewer opened after an event see a latched alarm or a sensor fault. */
+        ReportDetectorStatus(&detector, detector_event, HAL_GetTick(), true, &last_report_ms);
 
         sample_number++;
     }
+}
+
+static void ResetMotionProcessing(int accel_asm[3], int gyro_asm[3],
+                                  int accel_c[3], int gyro_c[3],
+                                  MotionMetricsState *accel_history,
+                                  MotionMetricsState *gyro_history)
+{
+    memset(accel_asm, 0, 3 * sizeof(int));
+    memset(gyro_asm, 0, 3 * sizeof(int));
+    memset(accel_c, 0, 3 * sizeof(int));
+    memset(gyro_c, 0, 3 * sizeof(int));
+    memset(accel_history, 0, sizeof(*accel_history));
+    memset(gyro_history, 0, sizeof(*gyro_history));
+}
+
+static void ReportDetectorStatus(const FallDetector *detector, FallDetectorEvent event,
+                                 uint32_t now_ms, bool sensors_valid,
+                                 uint32_t *last_report_ms)
+{
+    if (event == FALL_EVENT_NONE && (uint32_t)(now_ms - *last_report_ms) < 1000U)
+        return;
+    *last_report_ms = now_ms;
+
+    const char *name = "STATUS";
+    const char *message = "";
+    switch (event)
+    {
+    case FALL_EVENT_READY:
+        name = "READY"; message = "Monitoring movement."; break;
+    case FALL_EVENT_SPIKE:
+        name = "SPIKE"; message = "Sharp movement; observing for 8 seconds."; break;
+    case FALL_EVENT_NEAR_FALL:
+        name = "NEAR_FALL"; message = "Continued movement; monitoring resumes."; break;
+    case FALL_EVENT_FALL:
+        name = "POSSIBLE_FALL"; message = "Sustained stillness; reset board to clear alarm."; break;
+    case FALL_EVENT_UNCERTAIN:
+        name = "UNCERTAIN"; message = "Mixed evidence; continuing one-second checks."; break;
+    case FALL_EVENT_SENSOR_FAULT:
+        name = "SENSOR_FAULT"; message = "Invalid sensor data; check connection and reset board."; break;
+    case FALL_EVENT_RESTARTED:
+        name = "RESTARTED"; message = "Sampling interrupted/recovered; warming up for 2 seconds."; break;
+    case FALL_EVENT_NONE:
+        break;
+    }
+    char text[256];
+    snprintf(text, sizeof(text),
+             "DETECTOR TimeMs=%lu State=%s Alarm=%u Sensors=%s Event=%s %s\r\n",
+             (unsigned long)now_ms, FallDetector_StateName(detector->state),
+             detector->fall_latched ? 1U : 0U, sensors_valid ? "OK" : "FAULT", name, message);
+    UART_Send(text);
 }
 
 static void FormatMetric(char *text, size_t size, bool valid, double value)

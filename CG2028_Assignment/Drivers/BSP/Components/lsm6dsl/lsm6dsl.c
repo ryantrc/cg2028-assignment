@@ -171,7 +171,7 @@ void LSM6DSL_AccReadXYZ(int16_t* pData)
 {
   int16_t pnRawData[3];
   uint8_t ctrlx= 0;
-  uint8_t buffer[6];
+  uint8_t buffer[6] = {0}; /* Defined contents even if an I2C read fails. */
   uint8_t i = 0;
   float sensitivity = 0;
   
@@ -316,7 +316,7 @@ void LSM6DSL_GyroReadXYZAngRate(float *pfData)
 {
   int16_t pnRawData[3];
   uint8_t ctrlg= 0;
-  uint8_t buffer[6];
+  uint8_t buffer[6] = {0}; /* Defined contents even if an I2C read fails. */
   uint8_t i = 0;
   float sensitivity = 0;
   

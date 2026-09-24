@@ -9,6 +9,10 @@ arithmetic mean across axes. Old `Avg` serial output produces an explicit error
 so that averages cannot be mistaken for magnitudes. Sampling remains at 100 ms
 and the baud rate remains 115200.
 
+The [Prototype 1 guide](../docs/prototype-1.md) explains the experimental
+fall/near-fall decisions, LED behavior and board-reset procedure. Its `DETECTOR`
+messages appear in Terminal; measurement files retain their 22-column format.
+
 ```text
 STM32 accelerometer + gyroscope → UART output → Python logger
                                                        ├─ SQLite database
@@ -221,8 +225,8 @@ A rise followed by a fall within one window can give a near-zero slope despite
 a large movement:
 `0, 0, 10, 0, 0` has zero fitted slope at equally spaced times. Magnitude alone
 cannot identify a fall; ordinary handling can also cause large readings. A recent
-peak measurement could be added later. The actual fall-decision logic is not
-implemented by this update.
+peak measurement could be added later. The experimental fall-decision logic is
+described in the [Prototype 1 guide](../docs/prototype-1.md).
 
 ## Useful commands
 
