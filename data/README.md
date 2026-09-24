@@ -6,6 +6,11 @@ complete accelerometer and gyroscope samples to both files in this folder:
 - `activity_readings.sqlite3`: the SQLite database; the authoritative copy.
 - `activity_readings.csv`: the same saved measurements, for Excel or analysis.
 
+**Reset on 24 September 2026:** all earlier trials, recording backups and
+generated analysis were cleared at your request. The database was recreated
+with no sessions or readings, and the CSV with only its current column headers.
+The next recording starts at session 1.
+
 ## Start and name a recording
 
 1. Rebuild and flash the updated `CG2028_Assignment` firmware, then run/resume
@@ -59,8 +64,8 @@ rates of change.**
 
 The four empty legacy columns (`accel_avg_rate`, `accel_msd_rate`,
 `gyro_avg_rate`, and `gyro_msd_rate`) have been **removed from the saved CSV and
-database**. The logger no longer creates these columns. The existing
-measurements, slopes, session labels and row IDs are retained.
+database format**. The logger no longer creates these columns. Removing these
+empty columns from an older dataset preserves its other measurements and labels.
 
 The board calculates the slopes and prints `MagnitudeSlope` and `MSDSlope` for
 each sensor. The Python logger copies those values into the corresponding CSV
@@ -115,13 +120,16 @@ A symmetric rise and fall can have a near-zero fitted slope despite substantial
 movement, so inspect magnitude, MSD and XYZ alongside the slopes. Magnitude
 alone is not a fall detector; ordinary handling can also produce large readings.
 
-## What happens to the earlier Avg recordings?
+## If you open an older Avg-format dataset later
 
-The logger automatically upgrades the database and matching CSV. Before
-conversion it creates timestamped `before-magnitude` backups in `data/backups`
-for these default filenames, preserving the original Avg measurements.
+The earlier trials from this workspace have been cleared. The following applies
+only if you later open another older Avg-format dataset with this logger.
 
-The current files replace `accel_avg_mps2` and `gyro_avg_dps` with
+The logger automatically upgrades that database and matching CSV. Before
+conversion it creates timestamped `before-magnitude` backups in a `backups`
+folder beside the files, preserving their original Avg measurements.
+
+The upgraded files replace `accel_avg_mps2` and `gyro_avg_dps` with
 `accel_magnitude_mps2` and `gyro_magnitude_dps`, calculated from each old row's
 saved XYZ. The two `*_avg_slope` fields are replaced by `*_magnitude_slope`
 fields, recalculated from those magnitudes using the saved board timestamps and
@@ -138,9 +146,7 @@ already filled its windows.
 The upgrade preserves XYZ, MSD, MSD slopes, IDs, activities and notes. The CSV
 still has **22 columns**. Historical magnitudes and their slopes use XYZ rounded
 to three decimal places, so they may differ slightly from calculations the new
-firmware would have made before display rounding. The earlier analysis report
-in `analysis_2026-09-24` describes the original Avg-format recordings and is
-retained as a historical snapshot.
+firmware would have made before display rounding.
 
 ## Identifying sessions and timestamps
 

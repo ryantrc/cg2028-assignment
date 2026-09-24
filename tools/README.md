@@ -56,6 +56,10 @@ If disconnected, saved data is kept; reconnect and run the command again.
 - `data/activity_readings.sqlite3`: the SQLite database, a normal local file.
 - `data/activity_readings.csv`: the same measurements in a spreadsheet format.
 
+**Reset on 24 September 2026:** all earlier trials, recording backups and
+generated analysis were cleared at your request. The database now starts empty
+and the CSV contains only the current column headers; the next run is session 1.
+
 The [data README](../data/README.md) explains the **22-column CSV format**.
 Current rates appear in the four `*_slope` columns. The four empty legacy
 `*_rate` columns have been removed from the CSV and database and will not be
@@ -95,11 +99,12 @@ XYZ/Magnitude for display, and prints metrics in scientific notation (for
 example, `1.200000e-04` means `0.00012`).
 The logger saves those metrics directly, without recalculating from rounded XYZ.
 
-### Upgrading existing recordings
+### If you open an older Avg-format dataset later
 
-Existing Avg-format recordings are upgraded automatically. Timestamped
-`before-magnitude` copies of the database and CSV are retained in `data/backups`
-for the default filenames before conversion. The upgraded files replace the two
+The earlier workspace recordings were cleared by the reset above. If you later
+open another Avg-format dataset, the logger upgrades it automatically.
+Timestamped `before-magnitude` copies of that database and CSV are created in a
+`backups` folder beside the files before conversion. The upgraded files replace the two
 Avg fields and two Avg-slope fields with magnitude and magnitude-slope fields;
 the old average values are not relabelled as magnitudes.
 
