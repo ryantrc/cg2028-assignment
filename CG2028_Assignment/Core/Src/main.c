@@ -131,40 +131,38 @@ int main(void)
             gyro_ewma_asm[1] / 1000.0f,
             gyro_ewma_asm[2] / 1000.0f};
 
-        /* Arithmetic average across X, Y and Z for the current sample. */
-        float accel_avg_mps2 = (accel_mps2[0] + accel_mps2[1] + accel_mps2[2]) / 3.0f;
-        float gyro_avg_dps = (gyro_dps[0] + gyro_dps[1] + gyro_dps[2]) / 3.0f;
-
-        /* MSD = mean of the three squared changes since the previous sample.
-         * AvgSlope and MSDSlope fit a straight line to their latest five
+        /* Magnitude = sqrt(X*X + Y*Y + Z*Z) of the current filtered axes.
+         * MSD remains the mean of the three squared AXIS changes since the
+         * previous sample; it is not the squared change in magnitude.
+         * MagnitudeSlope and MSDSlope fit a straight line to their latest five
          * readings against actual sample times. Positive slopes mean rising
          * values; negative slopes mean falling values. Startup fields remain
          * NA until their complete five-point windows are available.
          * Acceleration MSD uses (m/s^2)^2; gyro MSD uses (degrees/s)^2.
          * Each corresponding slope adds a further division by seconds. */
         MotionMetrics accel_metrics = MotionMetrics_Update(
-            &accel_metrics_state, accel_mps2, accel_avg_mps2, sample_time_ms);
+            &accel_metrics_state, accel_mps2, sample_time_ms);
         MotionMetrics gyro_metrics = MotionMetrics_Update(
-            &gyro_metrics_state, gyro_dps, gyro_avg_dps, sample_time_ms);
-        char accel_msd[24], accel_avg_slope[24], accel_msd_slope[24];
-        char gyro_msd[24], gyro_avg_slope[24], gyro_msd_slope[24];
+            &gyro_metrics_state, gyro_dps, sample_time_ms);
+        char accel_msd[24], accel_magnitude_slope[24], accel_msd_slope[24];
+        char gyro_msd[24], gyro_magnitude_slope[24], gyro_msd_slope[24];
         FormatMetric(accel_msd, sizeof(accel_msd), accel_metrics.msd_valid, accel_metrics.msd);
-        FormatMetric(accel_avg_slope, sizeof(accel_avg_slope), accel_metrics.average_slope_valid, accel_metrics.average_slope);
+        FormatMetric(accel_magnitude_slope, sizeof(accel_magnitude_slope), accel_metrics.magnitude_slope_valid, accel_metrics.magnitude_slope);
         FormatMetric(accel_msd_slope, sizeof(accel_msd_slope), accel_metrics.msd_slope_valid, accel_metrics.msd_slope);
         FormatMetric(gyro_msd, sizeof(gyro_msd), gyro_metrics.msd_valid, gyro_metrics.msd);
-        FormatMetric(gyro_avg_slope, sizeof(gyro_avg_slope), gyro_metrics.average_slope_valid, gyro_metrics.average_slope);
+        FormatMetric(gyro_magnitude_slope, sizeof(gyro_magnitude_slope), gyro_metrics.magnitude_slope_valid, gyro_metrics.magnitude_slope);
         FormatMetric(gyro_msd_slope, sizeof(gyro_msd_slope), gyro_metrics.msd_slope_valid, gyro_metrics.msd_slope);
 
         char buffer[512];
         snprintf(buffer, sizeof(buffer),
                  "Sample %lu TimeMs=%lu SlopeWindow=%u\r\n"
-                 "Accel EWMA ASM [m/s^2]: X=%8.3f Y=%8.3f Z=%8.3f Avg=%8.3f MSD=%s AvgSlope=%s MSDSlope=%s\r\n"
-                 "Gyro  EWMA ASM [dps]  : X=%8.3f Y=%8.3f Z=%8.3f Avg=%8.3f MSD=%s AvgSlope=%s MSDSlope=%s\r\n",
+                 "Accel EWMA ASM [m/s^2]: X=%8.3f Y=%8.3f Z=%8.3f Magnitude=%8.3f MSD=%s MagnitudeSlope=%s MSDSlope=%s\r\n"
+                 "Gyro  EWMA ASM [dps]  : X=%8.3f Y=%8.3f Z=%8.3f Magnitude=%8.3f MSD=%s MagnitudeSlope=%s MSDSlope=%s\r\n",
                  sample_number, (unsigned long)sample_time_ms, MOTION_SLOPE_WINDOW_SAMPLES,
-                 accel_mps2[0], accel_mps2[1], accel_mps2[2], accel_avg_mps2,
-                 accel_msd, accel_avg_slope, accel_msd_slope,
-                 gyro_dps[0], gyro_dps[1], gyro_dps[2], gyro_avg_dps,
-                 gyro_msd, gyro_avg_slope, gyro_msd_slope);
+                 accel_mps2[0], accel_mps2[1], accel_mps2[2], accel_metrics.magnitude,
+                 accel_msd, accel_magnitude_slope, accel_msd_slope,
+                 gyro_dps[0], gyro_dps[1], gyro_dps[2], gyro_metrics.magnitude,
+                 gyro_msd, gyro_magnitude_slope, gyro_msd_slope);
         UART_Send(buffer);
 
         /* Optional debugging check. This confirms that the assembly routine

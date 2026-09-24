@@ -2,4 +2,5 @@
 /data/*.sqlite3
 /data/*.sqlite3-*
 /data/*.csv
+/data/backups/
 /tools/__pycache__/

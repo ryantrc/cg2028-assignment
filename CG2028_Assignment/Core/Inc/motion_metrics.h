@@ -1,6 +1,7 @@
 #ifndef MOTION_METRICS_H
 #define MOTION_METRICS_H
 
+#include <math.h>
 #include <stdbool.h>
 #include <stdint.h>
 
@@ -14,24 +15,25 @@ typedef struct
     unsigned int count;
 } MotionSlopeWindow;
 
-/* Keep an independent state for each sensor. XYZ and their signed arithmetic
- * average must use the same physical units. Only the latest five Avg values
- * and latest five valid MSD values contribute to their respective slopes. */
+/* Keep an independent state for each sensor. Magnitude uses the same physical
+ * units as XYZ. Only the latest five magnitudes and latest five valid MSD
+ * values contribute to their respective slopes. */
 typedef struct
 {
     bool has_previous_sample;
     double previous_xyz[3];
-    MotionSlopeWindow average_history;
+    MotionSlopeWindow magnitude_history;
     MotionSlopeWindow msd_history;
 } MotionMetricsState;
 
 typedef struct
 {
+    double magnitude;
     double msd;
-    double average_slope;
+    double magnitude_slope;
     double msd_slope;
     bool msd_valid;
-    bool average_slope_valid;
+    bool magnitude_slope_valid;
     bool msd_slope_valid;
 } MotionMetrics;
 
@@ -96,10 +98,13 @@ static inline bool MotionSlopeWindow_Update(MotionSlopeWindow *window,
 
 static inline MotionMetrics MotionMetrics_Update(MotionMetricsState *state,
                                                  const float xyz[3],
-                                                 double average,
                                                  uint32_t time_ms)
 {
     MotionMetrics result = {0};
+    /* Compute from the current filtered axes before display rounding. Unlike
+     * their signed average, opposite axis signs cannot cancel in this norm.
+     * The configured sensor ranges keep the float sum of squares in range. */
+    result.magnitude = sqrtf(xyz[0] * xyz[0] + xyz[1] * xyz[1] + xyz[2] * xyz[2]);
 
     if (state->has_previous_sample)
     {
@@ -116,9 +121,10 @@ static inline MotionMetrics MotionMetrics_Update(MotionMetricsState *state,
             &state->msd_history, result.msd, time_ms, &result.msd_slope);
     }
 
-    /* The fifth sample completes the first window for the signed XYZ Avg. */
-    result.average_slope_valid = MotionSlopeWindow_Update(
-        &state->average_history, average, time_ms, &result.average_slope);
+    /* The fifth sample completes the first magnitude window. Magnitudes are
+     * nonnegative, but their slope can be positive, negative, or zero. */
+    result.magnitude_slope_valid = MotionSlopeWindow_Update(
+        &state->magnitude_history, result.magnitude, time_ms, &result.magnitude_slope);
     for (int axis = 0; axis < 3; axis++)
     {
         state->previous_xyz[axis] = xyz[axis];

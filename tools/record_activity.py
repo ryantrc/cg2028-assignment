@@ -23,30 +23,41 @@ import time
 
 ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = ROOT / "data"
+DEFAULT_DURATION_SECONDS = 30
 MEASUREMENTS = (
-    "accel_x_mps2", "accel_y_mps2", "accel_z_mps2", "accel_avg_mps2",
-    "gyro_x_dps", "gyro_y_dps", "gyro_z_dps", "gyro_avg_dps",
+    "accel_x_mps2", "accel_y_mps2", "accel_z_mps2", "accel_magnitude_mps2",
+    "gyro_x_dps", "gyro_y_dps", "gyro_z_dps", "gyro_magnitude_dps",
 )
-METRIC_FIELDS = (
+LEGACY_MEASUREMENTS = tuple(field.replace("magnitude", "avg") for field in MEASUREMENTS)
+RETIRED_RATE_FIELDS = (
+    "accel_avg_rate", "accel_msd_rate", "gyro_avg_rate", "gyro_msd_rate",
+)
+CUMULATIVE_METRIC_FIELDS = (
     "board_time_ms", "accel_msd", "accel_avg_rate", "accel_msd_rate",
     "gyro_msd", "gyro_avg_rate", "gyro_msd_rate",
 )
+METRIC_FIELDS = ("board_time_ms", "accel_msd", "gyro_msd")
 SLOPE_FIELDS = (
-    "slope_window_samples", "accel_avg_slope", "accel_msd_slope",
-    "gyro_avg_slope", "gyro_msd_slope",
+    "slope_window_samples", "accel_magnitude_slope", "accel_msd_slope",
+    "gyro_magnitude_slope", "gyro_msd_slope",
 )
-LEGACY_CSV_FIELDS = (
+LEGACY_SLOPE_FIELDS = tuple(field.replace("magnitude", "avg") for field in SLOPE_FIELDS)
+BASE_FIELDS = (
     "record_id", "session_id", "timestamp_utc", "activity", "notes",
-    "sample_number", *MEASUREMENTS,
+    "sample_number",
 )
-CUMULATIVE_CSV_FIELDS = (*LEGACY_CSV_FIELDS, *METRIC_FIELDS)
-CSV_FIELDS = (*CUMULATIVE_CSV_FIELDS, *SLOPE_FIELDS)
+LEGACY_AVERAGE_FIELDS = ("accel_avg_mps2", "gyro_avg_dps", "accel_avg_slope", "gyro_avg_slope")
+LEGACY_CSV_FIELDS = (*BASE_FIELDS, *LEGACY_MEASUREMENTS)
+CUMULATIVE_CSV_FIELDS = (*LEGACY_CSV_FIELDS, *CUMULATIVE_METRIC_FIELDS)
+PREVIOUS_CSV_FIELDS = (*CUMULATIVE_CSV_FIELDS, *LEGACY_SLOPE_FIELDS)
+AVERAGE_CSV_FIELDS = (*LEGACY_CSV_FIELDS, *METRIC_FIELDS, *LEGACY_SLOPE_FIELDS)
+CSV_FIELDS = (*BASE_FIELDS, *MEASUREMENTS, *METRIC_FIELDS, *SLOPE_FIELDS)
 NUMBER = r"[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?"
-VALUES = rf"X=\s*({NUMBER})\s+Y=\s*({NUMBER})\s+Z=\s*({NUMBER})\s+Avg=\s*({NUMBER})"
+VALUES = rf"X=\s*({NUMBER})\s+Y=\s*({NUMBER})\s+Z=\s*({NUMBER})\s+Magnitude=\s*({NUMBER})"
 METRIC_VALUE = rf"(?:{NUMBER}|NA)"
 METRICS = (rf"(?:\s+MSD=\s*({METRIC_VALUE})\s+AvgRate=\s*({METRIC_VALUE})"
            rf"\s+MSDRate=\s*({METRIC_VALUE}))?")
-SLOPE_METRICS = (rf"\s+MSD=\s*({METRIC_VALUE})\s+AvgSlope=\s*({METRIC_VALUE})"
+SLOPE_METRICS = (rf"\s+MSD=\s*({METRIC_VALUE})\s+MagnitudeSlope=\s*({METRIC_VALUE})"
                  rf"\s+MSDSlope=\s*({METRIC_VALUE})")
 ACCEL = re.compile(r"Accel\s+EWMA\s+ASM\s+\[m/s\^2\]\s*:\s*" + VALUES + METRICS)
 GYRO = re.compile(r"Gyro\s+EWMA\s+ASM\s+\[dps\]\s*:\s*" + VALUES + METRICS)
@@ -79,7 +90,7 @@ class SampleParser:
         if extended != (self.board_time_ms is not None):
             return None
         values = tuple(map(float, groups[:4]))
-        if not all(map(math.isfinite, values)):
+        if not all(map(math.isfinite, values)) or values[3] < 0:
             return None
         metrics = None
         if extended:
@@ -95,6 +106,13 @@ class SampleParser:
 
     def feed(self, line):
         line = line.strip()
+        if line.startswith(("Accel", "Gyro")) and re.search(r"\bAvg\s*=", line):
+            self.reset()
+            raise ValueError(
+                "The board is still sending Avg. Rebuild and flash CG2028_Assignment "
+                "in CubeIDE, then resume it: the updated firmware prints Magnitude "
+                "and MagnitudeSlope. Saved recordings are retained."
+            )
         if line.startswith("Sample"):
             self.reset()
             header = re.fullmatch(
@@ -141,7 +159,7 @@ class SampleParser:
                         self.slope_window_samples, *self.accel_metrics[1:], *gyro_metrics[1:]
                     )))
                 elif self.board_time_ms is not None:
-                    result.update(zip(METRIC_FIELDS, (
+                    result.update(zip(CUMULATIVE_METRIC_FIELDS, (
                         self.board_time_ms, *self.accel_metrics, *gyro_metrics
                     )))
             self.reset()
@@ -152,13 +170,20 @@ class SampleParser:
 
 class RecordingDatabase:
     def __init__(self, path):
-        path = Path(path).expanduser().resolve()
-        path.parent.mkdir(parents=True, exist_ok=True)
-        self.connection = sqlite3.connect(path)
+        self.path = Path(path).expanduser().resolve()
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        self.connection = sqlite3.connect(self.path)
         self.connection.row_factory = sqlite3.Row
         self.connection.execute("PRAGMA foreign_keys = ON")
         self.connection.execute("PRAGMA journal_mode = WAL")
         self.connection.execute("PRAGMA synchronous = FULL")
+        try:
+            self._initialize()
+        except BaseException:
+            self.connection.close()
+            raise
+
+    def _initialize(self):
         self.connection.executescript("""
             CREATE TABLE IF NOT EXISTS sessions (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -176,37 +201,160 @@ class RecordingDatabase:
                 accel_x_mps2 REAL NOT NULL,
                 accel_y_mps2 REAL NOT NULL,
                 accel_z_mps2 REAL NOT NULL,
-                accel_avg_mps2 REAL NOT NULL,
+                accel_magnitude_mps2 REAL NOT NULL,
                 gyro_x_dps REAL NOT NULL,
                 gyro_y_dps REAL NOT NULL,
                 gyro_z_dps REAL NOT NULL,
-                gyro_avg_dps REAL NOT NULL
+                gyro_magnitude_dps REAL NOT NULL
             );
             CREATE INDEX IF NOT EXISTS samples_session ON samples(session_id);
         """)
-        # Preserve all generations of recordings. Missing fields stay NULL;
-        # cumulative rates and rolling signed slopes use separate columns.
         existing = {row[1] for row in self.connection.execute("PRAGMA table_info(samples)")}
+        retired = [field for field in RETIRED_RATE_FIELDS if field in existing]
+        if retired:
+            populated = " OR ".join(f"{field} IS NOT NULL" for field in retired)
+            if self.connection.execute(f"SELECT 1 FROM samples WHERE {populated} LIMIT 1").fetchone():
+                raise ValueError(
+                    "This database contains recorded cumulative rates in retired columns. "
+                    "They have been preserved. Choose new --db and --csv files for the current firmware."
+                )
+        old_average = [field for field in LEGACY_AVERAGE_FIELDS if field in existing]
+        backup = self._backup_original() if old_average else None
         with self.connection:
             # sqlite3's context manager does not begin a transaction for DDL.
             self.connection.execute("BEGIN")
-            for field in (*METRIC_FIELDS, *SLOPE_FIELDS):
+            self.connection.execute("""CREATE TABLE IF NOT EXISTS recording_metadata (
+                key TEXT PRIMARY KEY, value TEXT NOT NULL
+            )""")
+            self.connection.execute("DROP VIEW IF EXISTS readings")
+            for field in retired:
+                self.connection.execute(f"ALTER TABLE samples DROP COLUMN {field}")
+            for field in (*MEASUREMENTS, *METRIC_FIELDS, *SLOPE_FIELDS):
                 if field not in existing:
                     kind = "INTEGER" if field in ("board_time_ms", "slope_window_samples") else "REAL"
                     self.connection.execute(f"ALTER TABLE samples ADD COLUMN {field} {kind}")
-            self.connection.execute("DROP VIEW IF EXISTS readings")
-            self.connection.execute("""CREATE VIEW readings AS
+            if old_average:
+                self._recompute_magnitudes()
+                for field in old_average:
+                    self.connection.execute(f"ALTER TABLE samples DROP COLUMN {field}")
+                last_id = self.connection.execute("SELECT COALESCE(MAX(id), 0) FROM samples").fetchone()[0]
+                self.connection.executemany(
+                    "INSERT OR REPLACE INTO recording_metadata (key, value) VALUES (?, ?)",
+                    [("legacy_average_backup", str(backup.relative_to(self.path.parent))),
+                     ("magnitude_recomputed_through_record_id", str(last_id)),
+                     ("magnitude_migration", "Derived from saved rounded XYZ; slopes use contiguous per-session board timestamps.")],
+                )
+            fields = ", ".join(f"p.{field}" for field in (*MEASUREMENTS, *METRIC_FIELDS, *SLOPE_FIELDS))
+            self.connection.execute(f"""CREATE VIEW readings AS
                 SELECT p.id AS record_id, p.session_id, p.timestamp_utc,
-                       s.activity, s.notes, p.sample_number,
-                       p.accel_x_mps2, p.accel_y_mps2, p.accel_z_mps2,
-                       p.accel_avg_mps2, p.gyro_x_dps, p.gyro_y_dps,
-                       p.gyro_z_dps, p.gyro_avg_dps,
-                       p.board_time_ms, p.accel_msd, p.accel_avg_rate,
-                       p.accel_msd_rate, p.gyro_msd, p.gyro_avg_rate, p.gyro_msd_rate,
-                       p.slope_window_samples, p.accel_avg_slope, p.accel_msd_slope,
-                       p.gyro_avg_slope, p.gyro_msd_slope
+                       s.activity, s.notes, p.sample_number, {fields}
                 FROM samples p JOIN sessions s ON p.session_id = s.id
             """)
+
+    def _backup_original(self):
+        """Keep every old value, including Avg, before the transactional migration."""
+        directory = self.path.parent / "backups"
+        directory.mkdir(parents=True, exist_ok=True)
+        stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+        with tempfile.NamedTemporaryFile(
+            dir=directory, prefix=f"{self.path.stem}.before-magnitude-{stamp}-",
+            suffix=".sqlite3", delete=False,
+        ) as handle:
+            backup = Path(handle.name)
+        try:
+            destination = sqlite3.connect(backup)
+            try:
+                self.connection.backup(destination)
+                # Make the archive a self-contained file, without WAL sidecars.
+                destination.execute("PRAGMA journal_mode = DELETE")
+            finally:
+                destination.close()
+        except BaseException:
+            backup.unlink(missing_ok=True)
+            raise
+        return backup
+
+    def _recompute_magnitudes(self):
+        """Historical data has only printed XYZ; never relabel an Avg or AvgSlope."""
+        previous = None
+        history = []
+        elapsed_ms = 0
+        rows = self.connection.execute("SELECT * FROM samples ORDER BY session_id, id").fetchall()
+        for row in rows:
+            magnitudes = tuple(math.sqrt(sum(float(row[f"{sensor}_{axis}_{unit}"]) ** 2
+                                            for axis in "xyz"))
+                               for sensor, unit in (("accel", "mps2"), ("gyro", "dps")))
+            if not all(map(math.isfinite, magnitudes)):
+                raise ValueError("Existing XYZ values are not finite; migration cancelled. Original backup retained.")
+            timestamp = row["board_time_ms"]
+            window = row["slope_window_samples"]
+            valid_time = timestamp is not None and 0 <= timestamp <= 0xFFFFFFFF
+            valid_window = window is not None and window >= 2
+            delta_ms = None
+            if previous is not None and valid_time and previous["board_time_ms"] is not None:
+                delta_ms = (timestamp - previous["board_time_ms"]) & 0xFFFFFFFF
+            continuous = (
+                previous is not None and row["session_id"] == previous["session_id"]
+                and row["sample_number"] == previous["sample_number"] + 1
+                and window == previous["slope_window_samples"]
+                and delta_ms is not None and 0 < delta_ms < 0x80000000
+            )
+            if not continuous:
+                history = []
+                elapsed_ms = 0
+            else:
+                elapsed_ms += delta_ms
+            slopes = (None, None)
+            if valid_time and valid_window:
+                history.append((elapsed_ms, *magnitudes))
+                history = history[-window:]
+                if len(history) == window:
+                    seconds = [(point[0] - history[0][0]) / 1000.0 for point in history]
+                    mean_t = sum(seconds) / window
+                    centered = [value - mean_t for value in seconds]
+                    denominator = sum(value * value for value in centered)
+                    if denominator > 0:
+                        means = [sum(point[axis] for point in history) / window for axis in (1, 2)]
+                        slopes = tuple(
+                            sum(t * (point[axis] - mean)
+                                for t, point in zip(centered, history)) / denominator
+                            for axis, mean in zip((1, 2), means)
+                        )
+            else:
+                history = []
+            self.connection.execute(
+                """UPDATE samples SET accel_magnitude_mps2=?, gyro_magnitude_dps=?,
+                       accel_magnitude_slope=?, gyro_magnitude_slope=? WHERE id=?""",
+                (*magnitudes, *slopes, row["id"]),
+            )
+            previous = row
+
+    def csv_reference_rows(self, fields):
+        """Validate old Avg CSVs against their preserved original, even after restart."""
+        if not any(field in LEGACY_AVERAGE_FIELDS for field in fields):
+            yield from self.connection.execute("SELECT * FROM readings ORDER BY record_id")
+            return
+        item = self.connection.execute(
+            "SELECT value FROM recording_metadata WHERE key='legacy_average_backup'"
+        ).fetchone()
+        backup = self.path.parent / item[0] if item else None
+        if backup is None or not backup.is_file():
+            raise ValueError("Cannot validate an old Avg CSV without its original database backup. Choose a new --csv path.")
+        original = sqlite3.connect(backup.as_uri() + "?mode=ro", uri=True)
+        original.row_factory = sqlite3.Row
+        try:
+            old_rows = iter(original.execute("SELECT * FROM readings ORDER BY record_id"))
+            for current in self.connection.execute("SELECT * FROM readings ORDER BY record_id"):
+                old = next(old_rows, None)
+                if old is None:
+                    raise ValueError("Old Avg CSV extends beyond the preserved original database. Choose a new --csv path.")
+                shared = set(current.keys()) & set(old.keys())
+                if any(current[field] != old[field] for field in shared):
+                    raise ValueError("Existing database differs from its original backup. Choose a new --csv path.")
+                # Empty retired fields may be absent in a newer legacy backup.
+                yield {field: old[field] if field in old.keys() else None for field in fields}
+        finally:
+            original.close()
 
     def start_session(self, activity, notes, port):
         with self.connection:
@@ -217,6 +365,14 @@ class RecordingDatabase:
         return cursor.lastrowid
 
     def append_sample(self, session_id, sample):
+        if any(field in sample for field in LEGACY_AVERAGE_FIELDS):
+            raise ValueError("The board is sending Avg. Rebuild and flash the Magnitude/MagnitudeSlope firmware.")
+        if any(field in sample for field in RETIRED_RATE_FIELDS):
+            raise ValueError(
+                "The board is sending retired AvgRate/MSDRate values. "
+                "Rebuild and flash the current firmware that prints MagnitudeSlope/MSDSlope. "
+                "Already saved readings are retained."
+            )
         columns = ("session_id", "timestamp_utc", "sample_number", *MEASUREMENTS,
                    *METRIC_FIELDS, *SLOPE_FIELDS)
         values = (session_id, utc_now(), sample["sample_number"],
@@ -257,22 +413,40 @@ class CSVRecorder:
             with self.path.open(newline="", encoding="utf-8") as existing:
                 reader = csv.DictReader(existing)
                 if reader.fieldnames not in (
-                    list(CSV_FIELDS), list(CUMULATIVE_CSV_FIELDS), list(LEGACY_CSV_FIELDS)
+                    list(CSV_FIELDS), list(PREVIOUS_CSV_FIELDS),
+                    list(AVERAGE_CSV_FIELDS), list(CUMULATIVE_CSV_FIELDS), list(LEGACY_CSV_FIELDS)
                 ):
                     raise ValueError(f"CSV header does not match: {self.path}. Choose a new --csv path.")
                 upgrade_csv = reader.fieldnames != list(CSV_FIELDS)
-                db_rows = iter(database.connection.execute("SELECT * FROM readings ORDER BY record_id"))
-                for row in reader:
-                    db_row = next(db_rows, None)
-                    if db_row is None or row != {
-                        key: "" if db_row[key] is None else str(db_row[key]) for key in reader.fieldnames
-                    }:
-                        raise ValueError(f"CSV differs from this database: {self.path}. Choose a new --csv path to export its records.")
-                    expected_last = db_row["record_id"]
+                db_rows = database.csv_reference_rows(reader.fieldnames)
+                try:
+                    for row in reader:
+                        db_row = next(db_rows, None)
+                        if db_row is None or row != {
+                            key: "" if db_row[key] is None else str(db_row[key])
+                            for key in reader.fieldnames
+                        }:
+                            raise ValueError(f"CSV differs from this database: {self.path}. Choose a new --csv path to export its records.")
+                        expected_last = db_row["record_id"]
+                finally:
+                    db_rows.close()
             with self.path.open("rb") as existing:
                 existing.seek(-1, os.SEEK_END)
                 needs_newline = existing.read(1) != b"\n"
         if upgrade_csv:
+            # Retain the original columns and values for inspection. This copy
+            # happens only after the entire old CSV passes validation.
+            backup_dir = self.path.parent / "backups"
+            backup_dir.mkdir(parents=True, exist_ok=True)
+            stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+            with tempfile.NamedTemporaryFile(
+                dir=backup_dir, prefix=f"{self.path.stem}.before-magnitude-{stamp}-",
+                suffix=".csv", delete=False,
+            ) as backup:
+                with self.path.open("rb") as original:
+                    shutil.copyfileobj(original, backup)
+                backup.flush()
+                os.fsync(backup.fileno())
             # Replace only after validating the old CSV against its database.
             # A same-directory temporary file makes the header upgrade atomic.
             temporary = None
@@ -404,11 +578,38 @@ class SerialReader:
             os.close(self.fd)
 
 
+def prepare_console():
+    """Enable Ctrl+C and normal line output on an interactive console.
+
+    A shell can pass along damaged terminal modes from an earlier program.
+    Repair only the settings this logger needs; leave redirected streams alone.
+    Keep these corrected modes on exit so the shell can retain the repair.
+    This is separate from configuring the board's serial device.
+    """
+    import termios
+
+    for stream, is_input in ((sys.stdin, True), (sys.stdout, False), (sys.stderr, False)):
+        if stream is None or not stream.isatty():
+            continue
+        fd = stream.fileno()
+        original = termios.tcgetattr(fd)
+        settings = original[:]
+        settings[6] = original[6][:]
+        if is_input:
+            settings[3] |= termios.ISIG
+            settings[6][termios.VINTR] = b"\x03"
+        else:
+            settings[1] |= termios.OPOST | termios.ONLCR
+        if settings != original:
+            termios.tcsetattr(fd, termios.TCSANOW, settings)
+
+
 def record(args):
     if sys.platform == "win32":
         raise ValueError("Serial recording currently supports macOS and Linux. SQLite/CSV files are portable.")
     if Path(args.db).expanduser().resolve() == Path(args.csv).expanduser().resolve():
         raise ValueError("The database and CSV must be different files.")
+    prepare_console()
     path = serial_port(args.port)
     reader = SerialReader(path)
     database = None
@@ -419,26 +620,43 @@ def record(args):
         database = RecordingDatabase(args.db)
         csv_file = CSVRecorder(args.csv, database)
         session_id = database.start_session(args.activity, args.notes, path)
+        start = time.monotonic()
+        deadline = start + args.duration if args.duration else None
+        duration_reached = False
         print(f"Recording session {session_id}: {args.activity} from {path} at 115200 baud", flush=True)
         print(f"SQLite: {Path(args.db).expanduser().resolve()}\nCSV:    {Path(args.csv).expanduser().resolve()}", flush=True)
-        print("Press Ctrl+C to stop. Waiting for complete Sample / Accel / Gyro readings...", flush=True)
+        if args.duration:
+            print(f"Recording for {args.duration} seconds. Press Ctrl+C to stop early.", flush=True)
+        else:
+            print("Press Ctrl+C to stop.", flush=True)
+        print("Waiting for complete Sample / Accel / Gyro readings...", flush=True)
         parser = SampleParser()
         pending_bytes = b""
-        start = time.monotonic()
         last_sample_time = start
         last_number = None
         idle_notice = False
         while not args.samples or count < args.samples:
-            if args.duration and time.monotonic() - start >= args.duration:
-                break
+            timeout = 1.0
+            if deadline is not None:
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    duration_reached = True
+                    break
+                timeout = min(timeout, remaining)
             try:
-                chunk = reader.read()
+                chunk = reader.read(timeout=timeout)
             except OSError as error:
                 print(f"Serial connection lost: {error}. Saved rows are retained. Reconnect and rerun the command.", file=sys.stderr, flush=True)
                 return 1
+            if deadline is not None and time.monotonic() >= deadline:
+                duration_reached = True
+                break
             if chunk:
                 pending_bytes += chunk
                 while b"\n" in pending_bytes:
+                    if deadline is not None and time.monotonic() >= deadline:
+                        duration_reached = True
+                        break
                     line, pending_bytes = pending_bytes.split(b"\n", 1)
                     sample = parser.feed(line.decode("ascii", errors="replace"))
                     if sample is None:
@@ -455,19 +673,23 @@ def record(args):
                     idle_notice = False
                     print(f"Saved {count}: sample {sample['sample_number']} | "
                           f"Accel X={sample['accel_x_mps2']:.3f} Y={sample['accel_y_mps2']:.3f} "
-                          f"Z={sample['accel_z_mps2']:.3f} Avg={sample['accel_avg_mps2']:.3f}"
+                          f"Z={sample['accel_z_mps2']:.3f} Magnitude={sample['accel_magnitude_mps2']:.3f}"
                           f"{metric_text(sample, 'accel')} | "
                           f"Gyro X={sample['gyro_x_dps']:.3f} Y={sample['gyro_y_dps']:.3f} "
-                          f"Z={sample['gyro_z_dps']:.3f} Avg={sample['gyro_avg_dps']:.3f}"
+                          f"Z={sample['gyro_z_dps']:.3f} Magnitude={sample['gyro_magnitude_dps']:.3f}"
                           f"{metric_text(sample, 'gyro')}", flush=True)
                     if args.samples and count >= args.samples:
                         break
                 if len(pending_bytes) > 65536:
                     pending_bytes = b""
                     parser.reset()
+            if duration_reached:
+                break
             if not idle_notice and time.monotonic() - last_sample_time > 10:
-                print("No complete sample for 10 seconds. Resume the board in CubeIDE and check that its output includes Avg.", flush=True)
+                print("No complete sample for 10 seconds. Resume the board in CubeIDE and check that its output includes Magnitude.", flush=True)
                 idle_notice = True
+        if duration_reached:
+            print(f"{args.duration}-second recording complete. Keeping all saved readings.", flush=True)
     except KeyboardInterrupt:
         print("\nStopping recording.", flush=True)
     finally:
@@ -490,7 +712,7 @@ def metric_text(sample, sensor):
         return ""
     values = []
     if "slope_window_samples" in sample:
-        labels = (("msd", "MSD"), ("avg_slope", "AvgSlope"), ("msd_slope", "MSDSlope"))
+        labels = (("msd", "MSD"), ("magnitude_slope", "MagnitudeSlope"), ("msd_slope", "MSDSlope"))
     else:
         labels = (("msd", "MSD"), ("avg_rate", "AvgRate"), ("msd_rate", "MSDRate"))
     for suffix, label in labels:
@@ -532,7 +754,8 @@ def main():
     parser.add_argument("--notes", default="", help="Optional context, e.g. board placement")
     parser.add_argument("--db", type=Path, default=DATA_DIR / "activity_readings.sqlite3")
     parser.add_argument("--csv", type=Path, default=DATA_DIR / "activity_readings.csv")
-    parser.add_argument("--duration", type=positive, help="Stop after this many seconds; default: until Ctrl+C")
+    parser.add_argument("--duration", type=positive, default=DEFAULT_DURATION_SECONDS,
+                        help="Stop after this many seconds (default: %(default)s)")
     parser.add_argument("--samples", type=positive, help="Stop after this many complete samples")
     parser.add_argument("--summary", action="store_true", help="Show saved sessions without opening the serial port")
     args = parser.parse_args()

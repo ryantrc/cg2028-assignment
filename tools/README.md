@@ -3,9 +3,11 @@
 `record_activity.py` runs on your Mac, reads the application's UART
 output, and appends complete samples to **both a SQLite database and a CSV file**.
 No additional Python packages are needed. Python 3 on macOS or Linux is required
-for serial recording. Rebuild and flash the updated `CG2028_Assignment` firmware
-to get the five-reading regression slopes and 100 ms sampling. Older firmware output is also
-accepted, with empty cells for the extra fields.
+for serial recording. **Rebuild and flash the updated `CG2028_Assignment`
+firmware before recording:** it now sends vector magnitude instead of the
+arithmetic mean across axes. Old `Avg` serial output produces an explicit error
+so that averages cannot be mistaken for magnitudes. Sampling remains at 100 ms
+and the baud rate remains 115200.
 
 ```text
 STM32 accelerometer + gyroscope → UART output → Python logger
@@ -32,8 +34,18 @@ no parity, 1 stop bit and no flow control. If multiple devices are connected,
 choose explicitly using `--port /dev/cu.usbmodemXXXX` (use the current name from
 `ls /dev/cu.usbmodem*`). The detected name can change when reconnecting the board.
 
-Watch the readings and saved-row count in Terminal. **Press Ctrl+C to stop**;
-there is no `screen` shortcut involved. The board continues running.
+Watch the readings and saved-row count in Terminal. **Each run automatically
+stops after 30 seconds**, keeping every complete sample saved to SQLite and CSV.
+The timer starts when the recording session opens, including time spent waiting
+for the board, so resume the board before starting. Partial samples at the time
+limit are discarded. The board continues running after the logger stops.
+You can **press Ctrl+C to stop early**; there is no `screen` shortcut involved.
+An explicit `--duration 60` overrides the default for a one-minute recording.
+If `--samples` is supplied, recording ends at that count or the time limit,
+whichever happens first.
+The logger enables Ctrl+C handling and normal newline output on its interactive
+terminal at startup, including when an earlier program left those settings
+disabled. Redirected files and pipes are left alone.
 
 The board **and this logger** must be running and connected to record. Nothing is
 recorded while the logger is closed, the board is paused, or the computer sleeps.
@@ -43,6 +55,11 @@ If disconnected, saved data is kept; reconnect and run the command again.
 
 - `data/activity_readings.sqlite3`: the SQLite database, a normal local file.
 - `data/activity_readings.csv`: the same measurements in a spreadsheet format.
+
+The [data README](../data/README.md) explains the **22-column CSV format**.
+Current rates appear in the four `*_slope` columns. The four empty legacy
+`*_rate` columns have been removed from the CSV and database and will not be
+created for future recordings.
 
 Each run creates a new session and appends rows; earlier recordings are retained.
 SQLite commits each complete sample, and the CSV is flushed after each row.
@@ -62,36 +79,56 @@ Each row includes:
 | `activity`, `notes` | Labels supplied by you for this recording |
 | `sample_number` | Number printed by the board; can restart after a reset |
 | `board_time_ms` | Board HAL tick at acquisition start; milliseconds since boot, wraps after about 49.7 days |
-| `accel_x_mps2`, `accel_y_mps2`, `accel_z_mps2`, `accel_avg_mps2` | Filtered acceleration in m/s² |
-| `gyro_x_dps`, `gyro_y_dps`, `gyro_z_dps`, `gyro_avg_dps` | Filtered angular velocity in degrees/second |
+| `accel_x_mps2`, `accel_y_mps2`, `accel_z_mps2`, `accel_magnitude_mps2` | Filtered acceleration components and vector magnitude in m/s² |
+| `gyro_x_dps`, `gyro_y_dps`, `gyro_z_dps`, `gyro_magnitude_dps` | Filtered angular velocity components and vector magnitude in degrees/second |
 | `accel_msd`, `gyro_msd` | Mean squared change across the three axes since the previous sample |
 | `slope_window_samples` | Number of values fitted for each slope: 5 in the current firmware |
-| `accel_avg_slope`, `gyro_avg_slope` | Signed slope fitted through the latest five Avg values |
+| `accel_magnitude_slope`, `gyro_magnitude_slope` | Signed slope fitted through the latest five magnitude values |
 | `accel_msd_slope`, `gyro_msd_slope` | Signed slope fitted through the latest five valid MSD values |
-| `accel_avg_rate`, `gyro_avg_rate`, `accel_msd_rate`, `gyro_msd_rate` | Cumulative absolute-change rates from older firmware only; empty for new recordings |
 
-XYZ and Avg are **the printed EWMA-filtered values**, at the three-decimal precision
-sent by the firmware. `Avg` is the signed arithmetic mean across axes for one
-sample; it is not a time average or vector magnitude. The logger preserves the
-board's printed Avg, which can differ slightly from averaging its rounded XYZ.
-The board calculates metrics before rounding XYZ/Avg for display, and prints
-metrics in scientific notation (for example, `1.200000e-04` means `0.00012`).
+XYZ and Magnitude are **the printed values derived from EWMA-filtered axes**,
+at the three-decimal precision sent by the firmware. Magnitude is
+`sqrt(X² + Y² + Z²)` for one sample; it is not a time average. The logger preserves
+the board's printed magnitude, which can differ slightly from the magnitude
+calculated using its rounded XYZ. The board calculates metrics before rounding
+XYZ/Magnitude for display, and prints metrics in scientific notation (for
+example, `1.200000e-04` means `0.00012`).
 The logger saves those metrics directly, without recalculating from rounded XYZ.
 
-Existing databases gain nullable columns automatically. A matching old-format
-CSV is verified against its database, then replaced atomically with an expanded
-copy containing all saved rows. Earlier records keep their original values,
-IDs, and labels; their extra fields remain empty rather than inventing metrics.
-This includes recordings made with the previous cumulative-rate firmware:
-`*_rate` keeps its original meaning, while new signed rates use `*_slope`.
+### Upgrading existing recordings
+
+Existing Avg-format recordings are upgraded automatically. Timestamped
+`before-magnitude` copies of the database and CSV are retained in `data/backups`
+for the default filenames before conversion. The upgraded files replace the two
+Avg fields and two Avg-slope fields with magnitude and magnitude-slope fields;
+the old average values are not relabelled as magnitudes.
+
+Historical magnitudes are calculated from the saved, rounded XYZ values.
+Historical magnitude slopes are fitted again using the saved board timestamps
+and window sizes. A new history starts for each session, sample-counter gap or
+board reset, so a five-reading window leaves its first four historical slopes
+empty. Missing timestamps or otherwise insufficient history also leave slopes
+empty. This differs from a live recording started after the board has filled
+its windows: those first saved live rows can already contain valid slopes.
+
+XYZ, MSD, MSD slopes, IDs and labels are retained. The rounding of historical XYZ
+means reconstructed magnitudes/slopes can differ slightly from values the new
+firmware would have calculated before display rounding. The original files in
+the backups preserve the old averages for reference.
+
+The logger also removes retired `*_rate` columns when they contain no values.
+If an older database contains actual values in those columns, the logger stops
+rather than discarding them. Retain that dataset and choose a new pair of
+`--db` and `--csv` filenames for subsequent recordings.
 
 `normal` is a manual label, not a determination made by the fall detector. Only
-perform the intended activity during that recording. Early samples include the
-filter's startup settling. Record board placement and procedure in `--notes`.
+perform the intended activity during that recording. If the board has just
+started, early samples include the filter's startup settling. Record board
+placement and procedure in `--notes`.
 
 The logger ignores partial readings until it sees a complete new
 `Sample / Accel / Gyro` sequence. It does not invent missing samples. Keep the
-firmware's current output labels and `Avg` fields so they can be parsed.
+firmware's current output labels and `Magnitude` fields so they can be parsed.
 
 ## Motion metrics and sampling
 
@@ -99,7 +136,7 @@ Each sensor has its own history in `Core/Inc/motion_metrics.h`, used by `main.c`
 For sample `i`, the calculations are:
 
 ```text
-Avg_i = (X_i + Y_i + Z_i) / 3
+Magnitude_i = sqrt(X_i^2 + Y_i^2 + Z_i^2)
 MSD_i = ((X_i - X_previous)^2 + (Y_i - Y_previous)^2
        + (Z_i - Z_previous)^2) / 3
 
@@ -109,7 +146,7 @@ For each set of five (time, value) pairs:
     slope = sum((time - mean_time) * (value - mean_value))
             / sum((time - mean_time)^2)
 
-AvgSlope = slope fitted to the latest five Avg values
+MagnitudeSlope = slope fitted to the latest five Magnitude values
 MSDSlope = slope fitted to the latest five valid MSD values
 ```
 
@@ -126,9 +163,9 @@ the fit when intervals vary. Restarting the board clears the windows. Restarting
 only the Mac logger does not clear them, because the board computes the metrics.
 
 There is no previous reading for the first sample, so MSD is initially `NA`.
-MSD becomes available at the second sample. AvgSlope first becomes available at
-the fifth sample; MSDSlope needs five valid MSDs, so it becomes available at the
-sixth sample. A window with no elapsed time produces `NA`, avoiding division by
+MSD becomes available at the second sample. MagnitudeSlope first becomes
+available at the fifth sample; MSDSlope needs five valid MSDs, so it becomes
+available at the sixth sample. A window with no elapsed time produces `NA`, avoiding division by
 zero. SQLite stores unavailable metrics as NULL; CSV leaves their cells empty.
 A logger opened later may immediately receive valid slopes because the board
 has already filled its windows.
@@ -137,18 +174,19 @@ The new serial format explicitly identifies the window:
 
 ```text
 Sample 5 TimeMs=600 SlopeWindow=5
-Accel EWMA ASM [m/s^2]: X=... Y=... Z=... Avg=... MSD=... AvgSlope=... MSDSlope=...
-Gyro  EWMA ASM [dps]  : X=... Y=... Z=... Avg=... MSD=... AvgSlope=... MSDSlope=...
+Accel EWMA ASM [m/s^2]: X=... Y=... Z=... Magnitude=... MSD=... MagnitudeSlope=... MSDSlope=...
+Gyro  EWMA ASM [dps]  : X=... Y=... Z=... Magnitude=... MSD=... MagnitudeSlope=... MSDSlope=...
 ```
 
 | Metric | Accelerometer unit | Gyroscope unit |
 |---|---|---|
-| Avg | m/s² | degrees/s |
+| Magnitude | m/s² | degrees/s |
 | MSD | (m/s²)² | (degrees/s)² |
-| AvgSlope | (m/s²)/s | (degrees/s)/s |
+| MagnitudeSlope | (m/s²)/s | (degrees/s)/s |
 | MSDSlope | (m/s²)²/s | (degrees/s)²/s |
 
-`SAMPLE_INTERVAL_MS` in `main.c` is now `100`, targeting 10 samples per second.
+`SAMPLE_INTERVAL_MS` in `main.c` remains `100`, targeting 10 samples per second.
+UART remains at 115200 baud; this update does not enable 50 Hz sampling.
 LED blinking has independent timing and no longer blocks sampling for one
 second. The BSP initializes these sensors at 52 Hz, so the sensor update rate
 supports this polling interval. Processing, UART output, and debug pauses can
@@ -165,12 +203,21 @@ or delay brief peaks. The initial zero filter state creates a startup transient
 even with a stationary board. Keep sampling and alpha settings consistent when
 comparing activity recordings or choosing thresholds.
 
-For fall-detection experiments, view MSD alongside the slopes. A rise followed
-by a fall within one window can give a near-zero slope despite a large movement:
-`0, 0, 10, 0, 0` has zero fitted slope at equally spaced times. Signed axis
-averages can also cancel opposite directions. Possible later additions are
-vector magnitude `sqrt(X*X + Y*Y + Z*Z)` and a recent peak measurement. Those
-features and the actual fall-decision logic are not implemented by this update.
+Magnitude is nonnegative and avoids cancellation between positive and negative
+axis components. Once startup settling has passed, a stationary board should
+have an acceleration magnitude near **9.81 m/s²** because it senses gravity,
+and a gyroscope magnitude near **0 degrees/s**, subject to sensor noise and
+bias. Magnitude uses the already filtered XYZ values; it does not add another
+EWMA filter. Filtering components before taking their magnitude can suppress
+the magnitude during rapid direction changes.
+
+For fall-detection experiments, view magnitude and MSD alongside the slopes.
+A rise followed by a fall within one window can give a near-zero slope despite
+a large movement:
+`0, 0, 10, 0, 0` has zero fitted slope at equally spaced times. Magnitude alone
+cannot identify a fall; ordinary handling can also cause large readings. A recent
+peak measurement could be added later. The actual fall-decision logic is not
+implemented by this update.
 
 ## Useful commands
 

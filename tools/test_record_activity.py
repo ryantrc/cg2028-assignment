@@ -4,34 +4,55 @@ Run with: python3 -m unittest discover -s tools -p 'test_record_activity.py'
 """
 
 import csv
+import errno
+import io
+import math
+import os
+import select
 import sqlite3
+import subprocess
+import sys
 import tempfile
+import time
 import unittest
+from contextlib import closing
 from pathlib import Path
+from types import SimpleNamespace
 from unittest import mock
 
+import record_activity
 from record_activity import CSV_FIELDS, CSVRecorder, RecordingDatabase, SampleParser
 
 
-ACCEL = "Accel EWMA ASM [m/s^2]: X=   1.250 Y=  -2.500 Z=   9.800 Avg=   2.850"
-GYRO = "Gyro  EWMA ASM [dps]  : X= -30.000 Y=  15.000 Z=   0.000 Avg=  -5.000"
+ACCEL = "Accel EWMA ASM [m/s^2]: X=   1.250 Y=  -2.500 Z=   9.800 Magnitude=  10.191"
+GYRO = "Gyro  EWMA ASM [dps]  : X= -30.000 Y=  15.000 Z=   0.000 Magnitude=  33.541"
 ACCEL_EXTENDED = ACCEL + " MSD=0.125 AvgRate=2.500 MSDRate=0.750"
 GYRO_EXTENDED = GYRO + " MSD=25.000 AvgRate=50.000 MSDRate=100.000"
-ACCEL_SLOPE = ACCEL + " MSD=0.125 AvgSlope=-2.500 MSDSlope=0.750"
-GYRO_SLOPE = GYRO + " MSD=25.000 AvgSlope=50.000 MSDSlope=-100.000"
-LEGACY_FIELDS = (
+ACCEL_SLOPE = ACCEL + " MSD=0.125 MagnitudeSlope=-2.500 MSDSlope=0.750"
+GYRO_SLOPE = GYRO + " MSD=25.000 MagnitudeSlope=50.000 MSDSlope=-100.000"
+MAGNITUDE_FIELDS = (
     "record_id", "session_id", "timestamp_utc", "activity", "notes", "sample_number",
-    "accel_x_mps2", "accel_y_mps2", "accel_z_mps2", "accel_avg_mps2",
-    "gyro_x_dps", "gyro_y_dps", "gyro_z_dps", "gyro_avg_dps",
+    "accel_x_mps2", "accel_y_mps2", "accel_z_mps2", "accel_magnitude_mps2",
+    "gyro_x_dps", "gyro_y_dps", "gyro_z_dps", "gyro_magnitude_dps",
 )
 EXTRA_FIELDS = (
     "board_time_ms", "accel_msd", "accel_avg_rate", "accel_msd_rate",
     "gyro_msd", "gyro_avg_rate", "gyro_msd_rate",
 )
 SLOPE_FIELDS = (
-    "slope_window_samples", "accel_avg_slope", "accel_msd_slope",
-    "gyro_avg_slope", "gyro_msd_slope",
+    "slope_window_samples", "accel_magnitude_slope", "accel_msd_slope",
+    "gyro_magnitude_slope", "gyro_msd_slope",
 )
+RETIRED_RATE_FIELDS = (
+    "accel_avg_rate", "accel_msd_rate", "gyro_avg_rate", "gyro_msd_rate",
+)
+CURRENT_METRIC_FIELDS = ("board_time_ms", "accel_msd", "gyro_msd")
+LEGACY_FIELDS = tuple(field.replace("magnitude", "avg") for field in MAGNITUDE_FIELDS)
+LEGACY_SLOPE_FIELDS = tuple(field.replace("magnitude", "avg") for field in SLOPE_FIELDS)
+LEGACY_AVERAGE_FIELDS = ("accel_avg_mps2", "gyro_avg_dps", "accel_avg_slope", "gyro_avg_slope")
+CLEAN_CSV_FIELDS = MAGNITUDE_FIELDS + CURRENT_METRIC_FIELDS + SLOPE_FIELDS
+PREVIOUS_CSV_FIELDS = LEGACY_FIELDS + EXTRA_FIELDS + LEGACY_SLOPE_FIELDS
+AVERAGE_CSV_FIELDS = LEGACY_FIELDS + CURRENT_METRIC_FIELDS + LEGACY_SLOPE_FIELDS
 
 
 def expected_sample(number):
@@ -40,11 +61,11 @@ def expected_sample(number):
         "accel_x_mps2": 1.25,
         "accel_y_mps2": -2.5,
         "accel_z_mps2": 9.8,
-        "accel_avg_mps2": 2.85,
+        "accel_magnitude_mps2": 10.191,
         "gyro_x_dps": -30.0,
         "gyro_y_dps": 15.0,
         "gyro_z_dps": 0.0,
-        "gyro_avg_dps": -5.0,
+        "gyro_magnitude_dps": 33.541,
     }
 
 
@@ -68,11 +89,36 @@ def expected_slope_sample(number, board_time_ms, window=5):
         "accel_msd": 0.125,
         "gyro_msd": 25.0,
         "slope_window_samples": window,
-        "accel_avg_slope": -2.5,
+        "accel_magnitude_slope": -2.5,
         "accel_msd_slope": 0.75,
-        "gyro_avg_slope": 50.0,
+        "gyro_magnitude_slope": 50.0,
         "gyro_msd_slope": -100.0,
     }
+
+
+def expected_legacy_slope_sample(number, board_time_ms, window=5):
+    """Fixture from the old Avg firmware, not from the current storage API."""
+    sample = {
+        key.replace("magnitude", "avg"): value
+        for key, value in expected_slope_sample(number, board_time_ms, window).items()
+    }
+    sample["accel_avg_mps2"] = 2.85
+    sample["gyro_avg_dps"] = -5.0
+    return sample
+
+
+def expected_migrated_row(old, accel_slope=None, gyro_slope=None):
+    """Recompute geometry independently; never reinterpret an old average."""
+    result = {key: old.get(key) for key in CLEAN_CSV_FIELDS}
+    result["accel_magnitude_mps2"] = math.sqrt(sum(
+        old[f"accel_{axis}_mps2"] ** 2 for axis in "xyz"
+    ))
+    result["gyro_magnitude_dps"] = math.sqrt(sum(
+        old[f"gyro_{axis}_dps"] ** 2 for axis in "xyz"
+    ))
+    result["accel_magnitude_slope"] = accel_slope
+    result["gyro_magnitude_slope"] = gyro_slope
+    return result
 
 
 class SampleParserTests(unittest.TestCase):
@@ -116,8 +162,8 @@ class SampleParserTests(unittest.TestCase):
 
     def test_malformed_sensor_line_discards_cycle_then_recovers(self):
         malformed_cycles = {
-            "accel missing average": [ACCEL.rsplit(" Avg=", 1)[0], GYRO],
-            "gyro missing average": [ACCEL, GYRO.rsplit(" Avg=", 1)[0]],
+            "accel missing magnitude": [ACCEL.rsplit(" Magnitude=", 1)[0], GYRO],
+            "gyro missing magnitude": [ACCEL, GYRO.rsplit(" Magnitude=", 1)[0]],
             "accel invalid number": [ACCEL.replace("-2.500", "broken"), GYRO],
             "gyro invalid number": [ACCEL, GYRO.replace("15.000", "broken")],
         }
@@ -148,6 +194,36 @@ class SampleParserTests(unittest.TestCase):
     def test_completed_sample_is_not_emitted_twice(self):
         self.assertEqual(
             self.feed_all(["Sample 6", ACCEL, GYRO, GYRO]), [expected_sample(6)]
+        )
+
+    def test_old_average_firmware_fails_clearly_even_without_header(self):
+        old_accel = ACCEL.replace("Magnitude=  10.191", "Avg=   2.850")
+        old_gyro = GYRO.replace("Magnitude=  33.541", "Avg=  -5.000")
+        for header in (None, "Sample 1", "Sample 1 TimeMs=100 SlopeWindow=5"):
+            for sensor in (old_accel, old_gyro, old_accel + " MSD=1 AvgSlope=2 MSDSlope=3"):
+                with self.subTest(header=header, sensor=sensor):
+                    if header:
+                        self.parser.feed(header)
+                    with self.assertRaisesRegex(ValueError, r"(?i)rebuild.*flash"):
+                        self.parser.feed(sensor)
+                    # Failed old data must not complete a subsequent gyro frame.
+                    self.assertIsNone(self.parser.feed(GYRO))
+                    self.assertEqual(
+                        self.feed_all(["Sample 2", ACCEL, GYRO]), [expected_sample(2)]
+                    )
+
+    def test_magnitude_is_finite_and_nonnegative_while_axes_remain_signed(self):
+        for invalid in ("-1.0", "nan", "inf", "1e999"):
+            for bad_accel in (True, False):
+                with self.subTest(invalid=invalid, bad_accel=bad_accel):
+                    accel = ACCEL.replace("10.191", invalid) if bad_accel else ACCEL
+                    gyro = GYRO if bad_accel else GYRO.replace("33.541", invalid)
+                    self.assertEqual(self.feed_all(["Sample 1", accel, gyro]), [])
+        expected = expected_sample(2)
+        expected["accel_magnitude_mps2"] = expected["gyro_magnitude_dps"] = 0.0
+        self.assertEqual(
+            self.feed_all(["Sample 2", ACCEL.replace("10.191", "0"), GYRO.replace("33.541", "0")]),
+            [expected],
         )
 
     def test_extended_metrics_preserve_values_and_full_uint32_board_time(self):
@@ -247,22 +323,22 @@ class SampleParserTests(unittest.TestCase):
         )
 
     def test_slope_warmup_accepts_na_until_each_metric_is_available(self):
-        for sample_number, avg_slope_available in ((0, False), (4, True)):
+        for sample_number, magnitude_slope_available in ((0, False), (4, True)):
             with self.subTest(sample_number=sample_number):
                 first = sample_number == 0
                 expected = expected_slope_sample(sample_number, sample_number * 100)
                 if first:
                     expected["accel_msd"] = expected["gyro_msd"] = None
                 expected["accel_msd_slope"] = expected["gyro_msd_slope"] = None
-                if not avg_slope_available:
-                    expected["accel_avg_slope"] = expected["gyro_avg_slope"] = None
+                if not magnitude_slope_available:
+                    expected["accel_magnitude_slope"] = expected["gyro_magnitude_slope"] = None
                 accel_suffix = (
                     f" MSD={'NA' if first else '0.125'}"
-                    f" AvgSlope={'-2.500' if avg_slope_available else 'NA'} MSDSlope=NA"
+                    f" MagnitudeSlope={'-2.500' if magnitude_slope_available else 'NA'} MSDSlope=NA"
                 )
                 gyro_suffix = (
                     f" MSD={'NA' if first else '25.000'}"
-                    f" AvgSlope={'50.000' if avg_slope_available else 'NA'} MSDSlope=NA"
+                    f" MagnitudeSlope={'50.000' if magnitude_slope_available else 'NA'} MSDSlope=NA"
                 )
                 self.assertEqual(
                     self.feed_all([
@@ -302,9 +378,9 @@ class SampleParserTests(unittest.TestCase):
 
     def test_partial_nonfinite_slopes_or_negative_msd_are_rejected(self):
         suffixes = [
-            " MSD=1 AvgSlope=-2", " MSD=1 MSDSlope=-3",
-            " MSD=-1 AvgSlope=-2 MSDSlope=-3", " MSD=1 AvgSlope=nan MSDSlope=-3",
-            " MSD=1 AvgSlope=-2 MSDSlope=1e999", " MSD=inf AvgSlope=-2 MSDSlope=-3",
+            " MSD=1 MagnitudeSlope=-2", " MSD=1 MSDSlope=-3",
+            " MSD=-1 MagnitudeSlope=-2 MSDSlope=-3", " MSD=1 MagnitudeSlope=nan MSDSlope=-3",
+            " MSD=1 MagnitudeSlope=-2 MSDSlope=1e999", " MSD=inf MagnitudeSlope=-2 MSDSlope=-3",
         ]
         for suffix in suffixes:
             for bad_accel in (True, False):
@@ -342,19 +418,19 @@ class RecordingDatabaseTests(unittest.TestCase):
             second.close()
 
         self.assertNotEqual(normal, near_fall)
-        with sqlite3.connect(self.path) as connection:
+        with closing(sqlite3.connect(self.path)) as connection, connection:
             self.assertEqual(connection.execute("SELECT COUNT(*) FROM sessions").fetchone()[0], 2)
             rows = connection.execute(
                 "SELECT id, session_id, sample_number, accel_x_mps2, accel_y_mps2, "
-                "accel_z_mps2, accel_avg_mps2, gyro_x_dps, gyro_y_dps, gyro_z_dps, "
-                "gyro_avg_dps FROM samples ORDER BY id"
+                "accel_z_mps2, accel_magnitude_mps2, gyro_x_dps, gyro_y_dps, gyro_z_dps, "
+                "gyro_magnitude_dps FROM samples ORDER BY id"
             ).fetchall()
 
         self.assertEqual(len(rows), 3)
         self.assertEqual(len({row[0] for row in rows}), 3)
         self.assertEqual([row[1:3] for row in rows], [(normal, 0), (normal, 1), (near_fall, 0)])
         for row in rows:
-            self.assertEqual(row[3:], (1.25, -2.5, 9.8, 2.85, -30.0, 15.0, 0.0, -5.0))
+            self.assertEqual(row[3:], (1.25, -2.5, 9.8, 10.191, -30.0, 15.0, 0.0, 33.541))
 
     def test_counter_reset_inside_session_does_not_overwrite_prior_samples(self):
         database = RecordingDatabase(self.path)
@@ -368,11 +444,30 @@ class RecordingDatabaseTests(unittest.TestCase):
         finally:
             database.close()
 
-        with sqlite3.connect(self.path) as connection:
+        with closing(sqlite3.connect(self.path)) as connection, connection:
             rows = connection.execute(
                 "SELECT sample_number, accel_x_mps2 FROM samples ORDER BY id"
             ).fetchall()
         self.assertEqual(rows, [(0, 1.25), (0, -7.0)])
+
+    def test_fresh_database_has_only_magnitude_fields_and_rejects_old_average_keys(self):
+        database = RecordingDatabase(self.path)
+        self.addCleanup(database.close)
+        columns = {row["name"] for row in database.connection.execute("PRAGMA table_info(samples)")}
+        self.assertTrue(columns.isdisjoint(LEGACY_AVERAGE_FIELDS + RETIRED_RATE_FIELDS))
+        self.assertTrue(set(SLOPE_FIELDS).issubset(columns))
+        self.assertFalse((Path(self.path).parent / "backups").exists())
+        session = database.start_session("normal", "Magnitude firmware", "test-port")
+        for field in LEGACY_AVERAGE_FIELDS:
+            with self.subTest(field=field):
+                sample = {**expected_slope_sample(0, 0), field: None}
+                with self.assertRaisesRegex(ValueError, r"(?i)rebuild.*flash"):
+                    database.append_sample(session, sample)
+        self.assertEqual(database.connection.execute("SELECT COUNT(*) FROM samples").fetchone()[0], 0)
+        row = database.append_sample(session, expected_slope_sample(0, 0))
+        # Live printed values are recorded exactly, unlike a historical backfill.
+        self.assertEqual(row["accel_magnitude_mps2"], 10.191)
+        self.assertEqual(row["gyro_magnitude_dps"], 33.541)
 
 
 class CSVRecorderTests(unittest.TestCase):
@@ -563,20 +658,21 @@ class LegacyRecordingMigrationTests(unittest.TestCase):
             reader = csv.DictReader(handle)
             return tuple(reader.fieldnames), list(reader)
 
-    def test_migrates_real_old_schema_without_replacing_rows_or_inventing_metrics(self):
+    def test_migrates_real_old_schema_recomputing_magnitude_without_inventing_missing_metrics(self):
         database = self.open_database()
         columns = {
             row["name"]: row for row in database.connection.execute("PRAGMA table_info(samples)")
         }
-        for field in EXTRA_FIELDS + SLOPE_FIELDS:
+        for field in CURRENT_METRIC_FIELDS + SLOPE_FIELDS:
             self.assertIn(field, columns)
             self.assertEqual(columns[field]["notnull"], 0)
+        self.assertTrue(set(columns).isdisjoint(RETIRED_RATE_FIELDS + LEGACY_AVERAGE_FIELDS))
 
         migrated = [dict(row) for row in database.connection.execute("SELECT * FROM readings ORDER BY record_id")]
         self.assertEqual(len(migrated), 2)
         for old, new in zip(self.legacy_rows, migrated):
-            self.assertEqual({key: new[key] for key in LEGACY_FIELDS}, old)
-            self.assertEqual({key: new[key] for key in EXTRA_FIELDS}, dict.fromkeys(EXTRA_FIELDS))
+            self.assertEqual(new, expected_migrated_row(old))
+            self.assertEqual({key: new[key] for key in CURRENT_METRIC_FIELDS}, dict.fromkeys(CURRENT_METRIC_FIELDS))
             self.assertTrue(all(new[key] is None for key in SLOPE_FIELDS))
         self.assertEqual(
             dict(database.connection.execute("SELECT * FROM sessions WHERE id = 7").fetchone()),
@@ -585,13 +681,13 @@ class LegacyRecordingMigrationTests(unittest.TestCase):
 
         new_session = database.start_session("near_fall", "New firmware", "new-port")
         self.assertGreater(new_session, 7)
-        new_sample = expected_extended_sample(0, 100)
+        new_sample = expected_slope_sample(0, 100)
         row = database.append_sample(new_session, new_sample)
         self.assertGreater(row["record_id"], 42)
         for key, value in new_sample.items():
             self.assertEqual(row[key], value)
         legacy_format_row = database.append_sample(new_session, expected_sample(1))
-        self.assertTrue(all(legacy_format_row[key] is None for key in EXTRA_FIELDS))
+        self.assertTrue(all(legacy_format_row[key] is None for key in CURRENT_METRIC_FIELDS + SLOPE_FIELDS))
         database.finish_session(new_session)
         database.close()
 
@@ -603,20 +699,21 @@ class LegacyRecordingMigrationTests(unittest.TestCase):
         self.write_legacy_csv(self.legacy_rows[:1])
         database = self.open_database()
         new_session = database.start_session("normal", "Upgraded firmware", "new-port")
-        extended = database.append_sample(new_session, expected_extended_sample(0, 100))
+        extended = database.append_sample(new_session, expected_slope_sample(0, 100))
 
         recorder = CSVRecorder(self.csv_path, database)
         recorder.close()
         header, rows = self.read_csv()
 
-        self.assertEqual(header, LEGACY_FIELDS + EXTRA_FIELDS + SLOPE_FIELDS)
+        self.assertEqual(header, CLEAN_CSV_FIELDS)
         self.assertEqual(header, tuple(CSV_FIELDS))
         self.assertEqual([row["record_id"] for row in rows], ["41", "42", str(extended["record_id"])])
         for old, new in zip(self.legacy_rows, rows):
-            self.assertEqual({key: new[key] for key in LEGACY_FIELDS}, {key: str(value) for key, value in old.items()})
-            self.assertTrue(all(new[key] == "" for key in EXTRA_FIELDS))
+            expected = expected_migrated_row(old)
+            self.assertEqual(new, {key: "" if value is None else str(value) for key, value in expected.items()})
+            self.assertTrue(all(new[key] == "" for key in CURRENT_METRIC_FIELDS))
             self.assertTrue(all(new[key] == "" for key in SLOPE_FIELDS))
-        for key in EXTRA_FIELDS:
+        for key in CURRENT_METRIC_FIELDS + SLOPE_FIELDS:
             self.assertEqual(rows[-1][key], str(extended[key]))
 
         before_reopen = self.csv_path.read_bytes()
@@ -626,7 +723,7 @@ class LegacyRecordingMigrationTests(unittest.TestCase):
 
     def test_edited_legacy_csv_is_rejected_before_any_upgrade(self):
         database = self.open_database()
-        for field, wrong_value in (("gyro_y_dps", 900.0), ("record_id", 80)):
+        for field, wrong_value in (("gyro_y_dps", 900.0), ("record_id", 80), ("accel_avg_mps2", 10.191)):
             with self.subTest(field=field):
                 edited = dict(self.legacy_rows[0])
                 edited[field] = wrong_value
@@ -654,12 +751,18 @@ class LegacyRecordingMigrationTests(unittest.TestCase):
                     raise sqlite3.OperationalError("injected view creation failure")
                 return super().execute(sql, parameters)
 
-        connection = sqlite3.connect(self.db_path, factory=FailViewCreationConnection)
+        connect = sqlite3.connect
+        connection = connect(self.db_path, factory=FailViewCreationConnection)
+
+        def connect_with_injected_failure(path, *args, **kwargs):
+            if Path(path).resolve() == self.db_path.resolve():
+                return connection
+            return connect(path, *args, **kwargs)
+
         try:
-            with mock.patch("record_activity.sqlite3.connect", return_value=connection):
+            with mock.patch("record_activity.sqlite3.connect", side_effect=connect_with_injected_failure):
                 with self.assertRaisesRegex(sqlite3.OperationalError, "injected view creation failure"):
                     RecordingDatabase(self.db_path)
-            self.assertFalse(connection.in_transaction)
         finally:
             connection.close()
 
@@ -681,7 +784,7 @@ class LegacyRecordingMigrationTests(unittest.TestCase):
 
 
 class CumulativeRecordingMigrationTests(unittest.TestCase):
-    """Also preserve the intermediate format containing cumulative rates."""
+    """Remove empty retired columns while refusing to discard actual readings."""
 
     open_database = LegacyRecordingMigrationTests.open_database
     read_csv = LegacyRecordingMigrationTests.read_csv
@@ -726,28 +829,67 @@ class CumulativeRecordingMigrationTests(unittest.TestCase):
             writer.writeheader()
             writer.writerows(rows)
 
-    def test_existing_rates_are_preserved_and_new_slopes_use_separate_nullable_columns(self):
-        database = self.open_database()
-        migrated = [dict(row) for row in database.connection.execute("SELECT * FROM readings ORDER BY record_id")]
-        for old, new in zip(self.cumulative_rows, migrated):
-            self.assertEqual({key: new[key] for key in LEGACY_FIELDS + EXTRA_FIELDS}, old)
-            self.assertTrue(all(new[key] is None for key in SLOPE_FIELDS))
+    def clear_recorded_rates(self):
+        connection = sqlite3.connect(self.db_path)
+        connection.row_factory = sqlite3.Row
+        try:
+            connection.execute("UPDATE samples SET " + ", ".join(f"{field} = NULL" for field in RETIRED_RATE_FIELDS))
+            connection.commit()
+            self.cumulative_rows = [
+                dict(row) for row in connection.execute("SELECT * FROM readings ORDER BY record_id")
+            ]
+        finally:
+            connection.close()
 
-        session = database.start_session("normal", "Sliding regression", "test-port")
-        slope_sample = expected_slope_sample(0, 100)
-        row = database.append_sample(session, slope_sample)
-        for key, value in slope_sample.items():
-            self.assertEqual(row[key], value)
-        for field in ("accel_avg_rate", "accel_msd_rate", "gyro_avg_rate", "gyro_msd_rate"):
-            self.assertIsNone(row[field])
-        self.assertGreater(row["record_id"], 42)
-        database.close()
+    def schema_and_data_snapshot(self):
+        connection = sqlite3.connect(self.db_path)
+        connection.row_factory = sqlite3.Row
+        try:
+            return {
+                "schema": [tuple(row) for row in connection.execute(
+                    "SELECT type, name, sql FROM sqlite_master ORDER BY type, name"
+                )],
+                "readings": [dict(row) for row in connection.execute("SELECT * FROM readings ORDER BY record_id")],
+                "sessions": [dict(row) for row in connection.execute("SELECT * FROM sessions ORDER BY id")],
+            }
+        finally:
+            connection.close()
 
-        reopened = self.open_database()
-        persisted = [dict(row) for row in reopened.connection.execute("SELECT * FROM readings ORDER BY record_id")]
-        self.assertEqual(persisted, migrated + [row])
+    def test_populated_legacy_rates_block_migration_without_changing_schema_or_data(self):
+        before = self.schema_and_data_snapshot()
+        with self.assertRaises(ValueError):
+            RecordingDatabase(self.db_path)
+        self.assertEqual(self.schema_and_data_snapshot(), before)
 
-    def test_cumulative_csv_upgrades_and_recovers_tail_without_reinterpreting_rates(self):
+        # Zero is an actual recorded measurement, not an empty column.
+        self.clear_recorded_rates()
+        for field in RETIRED_RATE_FIELDS:
+            with self.subTest(field=field):
+                with closing(sqlite3.connect(self.db_path)) as connection, connection:
+                    connection.execute(f"UPDATE samples SET {field} = 0 WHERE id = 42")
+                before = self.schema_and_data_snapshot()
+                with self.assertRaises(ValueError):
+                    RecordingDatabase(self.db_path)
+                self.assertEqual(self.schema_and_data_snapshot(), before)
+                with closing(sqlite3.connect(self.db_path)) as connection, connection:
+                    connection.execute(f"UPDATE samples SET {field} = NULL")
+
+    def test_new_appends_reject_retired_rate_keys_even_when_value_is_none(self):
+        database = RecordingDatabase(self.directory / "fresh.sqlite3")
+        self.addCleanup(database.close)
+        session = database.start_session("normal", "Current firmware", "test-port")
+        for field in RETIRED_RATE_FIELDS:
+            for value in (None, 0.0, 2.5):
+                with self.subTest(field=field, value=value):
+                    sample = {**expected_slope_sample(0, 100), field: value}
+                    with self.assertRaises(ValueError):
+                        database.append_sample(session, sample)
+        self.assertEqual(database.connection.execute("SELECT COUNT(*) FROM samples").fetchone()[0], 0)
+        row = database.append_sample(session, expected_slope_sample(0, 100))
+        self.assertTrue(set(row).isdisjoint(RETIRED_RATE_FIELDS))
+
+    def test_empty_cumulative_columns_are_removed_and_csv_recovers_missing_tail(self):
+        self.clear_recorded_rates()
         self.write_cumulative_csv(self.cumulative_rows[:1])
         database = self.open_database()
         session = database.start_session("normal", "Sliding regression", "test-port")
@@ -756,31 +898,699 @@ class CumulativeRecordingMigrationTests(unittest.TestCase):
         recorder = CSVRecorder(self.csv_path, database)
         recorder.close()
         header, rows = self.read_csv()
-        self.assertEqual(header, LEGACY_FIELDS + EXTRA_FIELDS + SLOPE_FIELDS)
+        self.assertEqual(header, CLEAN_CSV_FIELDS)
         self.assertEqual([row["record_id"] for row in rows], ["41", "42", str(slope_row["record_id"])])
         for old, new in zip(self.cumulative_rows, rows):
-            for key in LEGACY_FIELDS + EXTRA_FIELDS:
-                self.assertEqual(new[key], "" if old[key] is None else str(old[key]))
+            expected = expected_migrated_row(old)
+            self.assertEqual(new, {key: "" if value is None else str(value) for key, value in expected.items()})
             self.assertTrue(all(new[key] == "" for key in SLOPE_FIELDS))
         for key in SLOPE_FIELDS:
             self.assertEqual(rows[-1][key], str(slope_row[key]))
-        for key in ("accel_avg_rate", "accel_msd_rate", "gyro_avg_rate", "gyro_msd_rate"):
-            self.assertEqual(rows[-1][key], "")
+        self.assertTrue(set(header).isdisjoint(RETIRED_RATE_FIELDS))
 
         before_reopen = self.csv_path.read_bytes()
         reopened = CSVRecorder(self.csv_path, database)
         reopened.close()
         self.assertEqual(self.csv_path.read_bytes(), before_reopen)
 
-    def test_edited_historical_rate_prevents_csv_upgrade_without_changing_file(self):
-        edited = dict(self.cumulative_rows[1])
-        edited["accel_avg_rate"] = 999.0
-        self.write_cumulative_csv([self.cumulative_rows[0], edited])
+    def test_nonempty_retired_or_edited_retained_csv_values_prevent_upgrade(self):
+        self.clear_recorded_rates()
+        database = self.open_database()
+        for field in RETIRED_RATE_FIELDS + ("accel_msd",):
+            with self.subTest(field=field):
+                edited = dict(self.cumulative_rows[1])
+                edited[field] = 0.0 if field in RETIRED_RATE_FIELDS else 999.0
+                self.write_cumulative_csv([self.cumulative_rows[0], edited])
+                before = self.csv_path.read_bytes()
+                with self.assertRaises(ValueError):
+                    CSVRecorder(self.csv_path, database)
+                self.assertEqual(self.csv_path.read_bytes(), before)
+
+
+class PreviousSlopeSchemaMigrationTests(unittest.TestCase):
+    """Exercise the real 26-column export with populated slopes and empty rates."""
+
+    open_database = LegacyRecordingMigrationTests.open_database
+    read_csv = LegacyRecordingMigrationTests.read_csv
+    schema_and_data_snapshot = CumulativeRecordingMigrationTests.schema_and_data_snapshot
+
+    def setUp(self):
+        CumulativeRecordingMigrationTests.setUp(self)
+        connection = sqlite3.connect(self.db_path)
+        connection.row_factory = sqlite3.Row
+        try:
+            for field in LEGACY_SLOPE_FIELDS:
+                kind = "INTEGER" if field == "slope_window_samples" else "REAL"
+                connection.execute(f"ALTER TABLE samples ADD COLUMN {field} {kind}")
+            connection.execute("""
+                INSERT INTO sessions VALUES
+                    (9, '2026-09-23T00:01:00+00:00', '2026-09-23T00:02:00+00:00',
+                     'standing', 'Second recorded session', 'old-port')
+            """)
+            connection.execute("DELETE FROM samples")
+            for i in range(300):
+                sample = expected_legacy_slope_sample(i % 150, i * 100)
+                sample["accel_avg_slope"] = (i - 150) / 100.0 if i >= 4 else None
+                sample["gyro_avg_slope"] = (150 - i) / 10.0 if i >= 4 else None
+                sample["accel_msd_slope"] = i / 8.0 if i >= 5 else None
+                sample["gyro_msd_slope"] = -i / 7.0 if i >= 5 else None
+                if i == 0:
+                    sample["accel_msd"] = sample["gyro_msd"] = None
+                fields = ("id", "session_id", "timestamp_utc", *sample, *RETIRED_RATE_FIELDS)
+                values = (
+                    41 + i * 2, 7 if i < 150 else 9,
+                    f"2026-09-23T00:{i // 60:02d}:{i % 60:02d}+00:00",
+                    *sample.values(), *(None for _ in RETIRED_RATE_FIELDS),
+                )
+                connection.execute(
+                    f"INSERT INTO samples ({', '.join(fields)}) VALUES ({', '.join('?' for _ in fields)})",
+                    values,
+                )
+            connection.execute("DROP VIEW readings")
+            connection.execute("""
+                CREATE VIEW readings AS
+                    SELECT p.id AS record_id, p.session_id, p.timestamp_utc,
+                           s.activity, s.notes, p.sample_number,
+                           p.accel_x_mps2, p.accel_y_mps2, p.accel_z_mps2,
+                           p.accel_avg_mps2, p.gyro_x_dps, p.gyro_y_dps,
+                           p.gyro_z_dps, p.gyro_avg_dps,
+                           p.board_time_ms, p.accel_msd, p.accel_avg_rate,
+                           p.accel_msd_rate, p.gyro_msd, p.gyro_avg_rate, p.gyro_msd_rate,
+                           p.slope_window_samples, p.accel_avg_slope, p.accel_msd_slope,
+                           p.gyro_avg_slope, p.gyro_msd_slope
+                    FROM samples p JOIN sessions s ON p.session_id = s.id
+            """)
+            connection.commit()
+            self.previous_rows = [
+                dict(row) for row in connection.execute("SELECT * FROM readings ORDER BY record_id")
+            ]
+            self.previous_sessions = [dict(row) for row in connection.execute("SELECT * FROM sessions ORDER BY id")]
+        finally:
+            connection.close()
+
+    def write_previous_csv(self, rows):
+        with self.csv_path.open("w", newline="", encoding="utf-8") as handle:
+            writer = csv.DictWriter(handle, fieldnames=PREVIOUS_CSV_FIELDS)
+            writer.writeheader()
+            writer.writerows(rows)
+
+    def test_cleanup_keeps_300_rows_recomputes_magnitude_slopes_and_preserves_msd_then_appends(self):
+        self.write_previous_csv(self.previous_rows)
+        expected_rows = [
+            expected_migrated_row(row, 0.0 if i % 150 >= 4 else None, 0.0 if i % 150 >= 4 else None)
+            for i, row in enumerate(self.previous_rows)
+        ]
+        database = self.open_database()
+        migrated = [dict(row) for row in database.connection.execute("SELECT * FROM readings ORDER BY record_id")]
+        self.assertEqual(len(migrated), 300)
+        self.assertEqual(migrated, expected_rows)
+        self.assertEqual(
+            [dict(row) for row in database.connection.execute("SELECT * FROM sessions ORDER BY id")],
+            self.previous_sessions,
+        )
+        recorder = CSVRecorder(self.csv_path, database)
+        recorder.close()
+        database.close()
+
+        reopened = self.open_database()
+        columns = {row["name"] for row in reopened.connection.execute("PRAGMA table_info(samples)")}
+        self.assertTrue(columns.isdisjoint(RETIRED_RATE_FIELDS + LEGACY_AVERAGE_FIELDS))
+        self.assertEqual(
+            [dict(row) for row in reopened.connection.execute("SELECT * FROM readings ORDER BY record_id")],
+            expected_rows,
+        )
+        session = reopened.start_session("normal", "After cleanup", "new-port")
+        appended = reopened.append_sample(session, expected_slope_sample(0, 0))
+        self.assertGreater(session, 9)
+        self.assertGreater(appended["record_id"], self.previous_rows[-1]["record_id"])
+        self.assertTrue(set(appended).isdisjoint(RETIRED_RATE_FIELDS))
+        recorder = CSVRecorder(self.csv_path, reopened)
+        recorder.close()
+        header, csv_rows = self.read_csv()
+        self.assertEqual(header, CLEAN_CSV_FIELDS)
+        self.assertEqual(len(header), 22)
+        self.assertEqual(csv_rows, [
+            {key: "" if row[key] is None else str(row[key]) for key in CLEAN_CSV_FIELDS}
+            for row in expected_rows + [appended]
+        ])
+
+    def test_populated_retired_rate_in_last_row_prevents_schema_cleanup(self):
+        with closing(sqlite3.connect(self.db_path)) as connection, connection:
+            connection.execute("UPDATE samples SET gyro_msd_rate = 0 WHERE id = ?", (self.previous_rows[-1]["record_id"],))
+        before = self.schema_and_data_snapshot()
+        with self.assertRaises(ValueError):
+            RecordingDatabase(self.db_path)
+        self.assertEqual(self.schema_and_data_snapshot(), before)
+
+    def test_previous_csv_with_nonempty_rate_or_edited_slope_is_never_rewritten(self):
+        database = self.open_database()
+        for field, value in (("gyro_avg_rate", 0.0), ("accel_avg_slope", 999.0)):
+            with self.subTest(field=field):
+                edited = dict(self.previous_rows[-1])
+                edited[field] = value
+                self.write_previous_csv([*self.previous_rows[:-1], edited])
+                before = self.csv_path.read_bytes()
+                with self.assertRaises(ValueError):
+                    CSVRecorder(self.csv_path, database)
+                self.assertEqual(self.csv_path.read_bytes(), before)
+
+    def test_failed_cleanup_restores_dropped_rate_columns_original_view_and_all_rows(self):
+        class FailViewCreationConnection(sqlite3.Connection):
+            def execute(self, sql, parameters=()):
+                if sql.lstrip().upper().startswith("CREATE VIEW READINGS AS"):
+                    raise sqlite3.OperationalError("injected view creation failure")
+                return super().execute(sql, parameters)
+
+        before = self.schema_and_data_snapshot()
+        connect = sqlite3.connect
+        connection = connect(self.db_path, factory=FailViewCreationConnection)
+
+        def connect_with_injected_failure(path, *args, **kwargs):
+            if Path(path).resolve() == self.db_path.resolve():
+                return connection
+            return connect(path, *args, **kwargs)
+
+        try:
+            with mock.patch("record_activity.sqlite3.connect", side_effect=connect_with_injected_failure):
+                with self.assertRaisesRegex(sqlite3.OperationalError, "injected view creation failure"):
+                    RecordingDatabase(self.db_path)
+        finally:
+            connection.close()
+        self.assertEqual(self.schema_and_data_snapshot(), before)
+
+
+class MagnitudeMigrationTests(unittest.TestCase):
+    """Migrate the real 22-column Avg schema, with recoverable original values."""
+
+    open_database = LegacyRecordingMigrationTests.open_database
+    read_csv = LegacyRecordingMigrationTests.read_csv
+    schema_and_data_snapshot = CumulativeRecordingMigrationTests.schema_and_data_snapshot
+
+    def setUp(self):
+        PreviousSlopeSchemaMigrationTests.setUp(self)
+        connection = sqlite3.connect(self.db_path)
+        connection.row_factory = sqlite3.Row
+        try:
+            connection.execute("DROP VIEW readings")
+            for field in RETIRED_RATE_FIELDS:
+                connection.execute(f"ALTER TABLE samples DROP COLUMN {field}")
+            fields = ", ".join(f"p.{field}" for field in AVERAGE_CSV_FIELDS[6:])
+            connection.execute(f"""CREATE VIEW readings AS
+                SELECT p.id AS record_id, p.session_id, p.timestamp_utc,
+                       s.activity, s.notes, p.sample_number, {fields}
+                FROM samples p JOIN sessions s ON p.session_id = s.id
+            """)
+            connection.commit()
+            self.original_rows = [dict(row) for row in connection.execute("SELECT * FROM readings ORDER BY record_id")]
+        finally:
+            connection.close()
+
+    def write_average_csv(self, rows):
+        with self.csv_path.open("w", newline="", encoding="utf-8") as handle:
+            writer = csv.DictWriter(handle, fieldnames=AVERAGE_CSV_FIELDS)
+            writer.writeheader()
+            writer.writerows(rows)
+
+    def metadata_and_backup(self, database):
+        metadata = dict(database.connection.execute("SELECT key, value FROM recording_metadata"))
+        relative = Path(metadata["legacy_average_backup"])
+        self.assertFalse(relative.is_absolute())
+        self.assertEqual(relative.parts[0], "backups")
+        backup = self.directory / relative
+        self.assertTrue(backup.is_file())
+        return metadata, backup
+
+    def replace_original_samples(self, specifications):
+        connection = sqlite3.connect(self.db_path)
+        connection.row_factory = sqlite3.Row
+        try:
+            connection.execute("DELETE FROM samples")
+            for index, specification in enumerate(specifications):
+                sample = expected_legacy_slope_sample(index, index * 100)
+                sample.update(specification)
+                session = sample.pop("session_id", 7)
+                # The previous mean and its slope are intentionally unrelated to
+                # the vector length. Copying either is observably incorrect.
+                sample["accel_avg_mps2"] = sum(sample[f"accel_{axis}_mps2"] for axis in "xyz") / 3
+                sample["gyro_avg_dps"] = sum(sample[f"gyro_{axis}_dps"] for axis in "xyz") / 3
+                sample["accel_avg_slope"] = 1234.0
+                sample["gyro_avg_slope"] = -5678.0
+                sample["accel_msd"] = index + 0.125
+                sample["gyro_msd"] = index + 25.0
+                sample["accel_msd_slope"] = index - 5.75
+                sample["gyro_msd_slope"] = 8.25 - index
+                fields = ("id", "session_id", "timestamp_utc", *sample)
+                values = (100 + index * 7, session, f"2026-09-23T00:00:{index:02d}+00:00", *sample.values())
+                connection.execute(
+                    f"INSERT INTO samples ({', '.join(fields)}) VALUES ({', '.join('?' for _ in fields)})",
+                    values,
+                )
+            connection.commit()
+            self.original_rows = [dict(row) for row in connection.execute("SELECT * FROM readings ORDER BY record_id")]
+        finally:
+            connection.close()
+
+    def test_backup_preserves_every_original_value_and_provenance_survives_reopen(self):
+        original_snapshot = self.schema_and_data_snapshot()
+        database = self.open_database()
+        metadata, backup = self.metadata_and_backup(database)
+        self.assertEqual(int(metadata["magnitude_recomputed_through_record_id"]), 639)
+        connection = sqlite3.connect(backup)
+        connection.row_factory = sqlite3.Row
+        try:
+            self.assertEqual(connection.execute("PRAGMA integrity_check").fetchone()[0], "ok")
+            self.assertEqual(
+                [dict(row) for row in connection.execute("SELECT * FROM readings ORDER BY record_id")],
+                self.original_rows,
+            )
+            self.assertEqual(
+                [dict(row) for row in connection.execute("SELECT * FROM sessions ORDER BY id")],
+                original_snapshot["sessions"],
+            )
+        finally:
+            connection.close()
+        for table in ("samples", "readings"):
+            columns = {row["name"] for row in database.connection.execute(f"PRAGMA table_info({table})")}
+            self.assertTrue(columns.isdisjoint(LEGACY_AVERAGE_FIELDS + RETIRED_RATE_FIELDS))
+        backups_before = {path.name for path in backup.parent.iterdir()}
+        database.close()
+        reopened = self.open_database()
+        self.assertEqual(dict(reopened.connection.execute("SELECT key, value FROM recording_metadata")), metadata)
+        self.assertEqual({path.name for path in backup.parent.iterdir()}, backups_before)
+
+    def test_slopes_use_actual_rounded_vectors_times_windows_and_reset_boundaries(self):
+        # Each tuple starts a new continuous history: gap, rebooted counter,
+        # another session, changed window, duplicate tick, or backward tick.
+        groups = [
+            (7, 50, [0xfffffff0 + t for t in (0, 80, 210, 310, 520, 630, 770)], 5, 10, 2, 40, -3),
+            (7, 60, [800, 900, 1000, 1100, 1200], 5, 20, -4, 30, 7),
+            (7, 0, [1300, 1400, 1500, 1600, 1700], 5, 5, 6, 25, -8),
+            (9, 5, [1800, 1900, 2000, 2100, 2200], 5, 11, -2, 18, 3),
+            (9, 10, [2300, 2400, 2500], 3, 12, 4, 15, -5),
+            (9, 13, [2500, 2600, 2700], 3, 9, -6, 10, 7),
+            (9, 16, [2000, 2100, 2200], 3, 8, 8, 20, -9),
+        ]
+        specifications = []
+        expectations = []
+        for session, counter, times, window, accel_start, accel_rate, gyro_start, gyro_rate in groups:
+            for index, tick in enumerate(times):
+                elapsed = (tick - times[0]) / 1000.0
+                accel = accel_start + accel_rate * elapsed
+                gyro = gyro_start + gyro_rate * elapsed
+                specifications.append({
+                    "session_id": session, "sample_number": counter + index,
+                    "board_time_ms": tick & 0xffffffff, "slope_window_samples": window,
+                    "accel_x_mps2": round(0.6 * accel, 3), "accel_y_mps2": round(0.8 * accel, 3), "accel_z_mps2": 0.0,
+                    "gyro_x_dps": round(-0.6 * gyro, 3), "gyro_y_dps": round(-0.8 * gyro, 3), "gyro_z_dps": 0.0,
+                })
+                expectations.append((accel_rate, gyro_rate) if index >= window - 1 else (None, None))
+        self.replace_original_samples(specifications)
+        database = self.open_database()
+        rows = [dict(row) for row in database.connection.execute("SELECT * FROM readings ORDER BY record_id")]
+        for old, new, expected_slopes in zip(self.original_rows, rows, expectations):
+            with self.subTest(record_id=new["record_id"]):
+                expected = expected_migrated_row(old, *expected_slopes)
+                for field in CLEAN_CSV_FIELDS:
+                    if field in ("accel_magnitude_slope", "gyro_magnitude_slope") and expected[field] is not None:
+                        self.assertAlmostEqual(new[field], expected[field], places=10)
+                    else:
+                        self.assertEqual(new[field], expected[field])
+
+    def test_recomputed_slopes_evict_old_points_and_do_not_use_average_slopes(self):
+        magnitudes = [10, 10, 10, 10, 20, 30, 40, 50, 60, 70]
+        self.replace_original_samples([
+            {"accel_x_mps2": value, "accel_y_mps2": 0.0, "accel_z_mps2": 0.0,
+             "gyro_x_dps": 100 - value, "gyro_y_dps": 0.0, "gyro_z_dps": 0.0}
+            for value in magnitudes
+        ])
+        database = self.open_database()
+        rows = list(database.connection.execute("SELECT * FROM readings ORDER BY record_id"))
+        for index, row in enumerate(rows):
+            if index < 4:
+                self.assertIsNone(row["accel_magnitude_slope"])
+                self.assertIsNone(row["gyro_magnitude_slope"])
+                continue
+            # Pairwise least-squares identity is independent of the centered
+            # covariance calculation used by the implementation.
+            points = list(enumerate(magnitudes[index - 4:index + 1]))
+            numerator = sum((x - u) * (y - v) for x, y in points for u, v in points if x > u)
+            denominator = sum((x - u) ** 2 for x, _ in points for u, _ in points if x > u)
+            expected = 10 * numerator / denominator  # index spacing is 0.1 s
+            self.assertAlmostEqual(row["accel_magnitude_slope"], expected)
+            self.assertAlmostEqual(row["gyro_magnitude_slope"], -expected)
+        self.assertEqual(rows[-1]["accel_magnitude_slope"], 100.0)
+
+    def test_restart_after_database_migration_validates_old_csv_then_keeps_new_live_values(self):
+        self.write_average_csv(self.original_rows[:-1])
+        original_csv = self.csv_path.read_bytes()
+        database = self.open_database()
+        metadata, _ = self.metadata_and_backup(database)
+        database.close()  # Simulates stopping after DB commit but before CSV replacement.
+        reopened = self.open_database()
+        session = reopened.start_session("normal", "Magnitude firmware", "new-port")
+        current = expected_slope_sample(0, 0)
+        live_row = reopened.append_sample(session, current)
+        recorder = CSVRecorder(self.csv_path, reopened)
+        recorder.close()
+        header, rows = self.read_csv()
+        self.assertEqual(header, CLEAN_CSV_FIELDS)
+        self.assertEqual(len(rows), 301)
+        self.assertEqual([int(row["record_id"]) for row in rows], [row["record_id"] for row in self.original_rows] + [live_row["record_id"]])
+        self.assertEqual(rows[-1], {key: "" if value is None else str(value) for key, value in live_row.items()})
+        backups = list((self.directory / "backups").glob("*.csv"))
+        self.assertEqual(len(backups), 1)
+        self.assertEqual(backups[0].read_bytes(), original_csv)
+        self.assertEqual(dict(reopened.connection.execute("SELECT key, value FROM recording_metadata")), metadata)
+        reopened.close()
+        final = self.open_database()
+        persisted_live = dict(final.connection.execute("SELECT * FROM readings WHERE record_id = ?", (live_row["record_id"],)).fetchone())
+        self.assertEqual(persisted_live, live_row)
+        before = self.csv_path.read_bytes()
+        CSVRecorder(self.csv_path, final).close()
+        self.assertEqual(self.csv_path.read_bytes(), before)
+
+    def test_edited_average_or_slope_is_rejected_before_csv_backup_or_rewrite(self):
+        database = self.open_database()
+        for field in LEGACY_AVERAGE_FIELDS:
+            with self.subTest(field=field):
+                last = {**self.original_rows[-1], field: 12345.0}
+                self.write_average_csv([*self.original_rows[:-1], last])
+                before = self.csv_path.read_bytes()
+                with self.assertRaises(ValueError):
+                    CSVRecorder(self.csv_path, database)
+                self.assertEqual(self.csv_path.read_bytes(), before)
+                self.assertEqual(list((self.directory / "backups").glob("*.csv")), [])
+
+    def test_missing_original_database_backup_prevents_old_csv_rewrite(self):
+        self.write_average_csv(self.original_rows)
         before = self.csv_path.read_bytes()
         database = self.open_database()
-        with self.assertRaises(ValueError):
+        _, backup = self.metadata_and_backup(database)
+        backup.rename(backup.with_suffix(".unavailable"))
+        with self.assertRaisesRegex(ValueError, "backup"):
             CSVRecorder(self.csv_path, database)
         self.assertEqual(self.csv_path.read_bytes(), before)
+
+    def test_failed_database_backup_leaves_original_schema_and_values_intact(self):
+        class FailBackupConnection(sqlite3.Connection):
+            def backup(self, target, **kwargs):
+                raise sqlite3.OperationalError("injected backup failure")
+
+        before = self.schema_and_data_snapshot()
+        connect = sqlite3.connect
+        connection = connect(self.db_path, factory=FailBackupConnection)
+
+        def connect_with_failed_backup(path, *args, **kwargs):
+            if Path(path).resolve() == self.db_path.resolve():
+                return connection
+            return connect(path, *args, **kwargs)
+
+        try:
+            with mock.patch("record_activity.sqlite3.connect", side_effect=connect_with_failed_backup):
+                with self.assertRaisesRegex(sqlite3.OperationalError, "injected backup failure"):
+                    RecordingDatabase(self.db_path)
+        finally:
+            connection.close()
+        self.assertEqual(self.schema_and_data_snapshot(), before)
+        self.assertEqual(list((self.directory / "backups").glob("*")), [])
+
+
+class RecordingDurationTests(unittest.TestCase):
+    def test_cli_defaults_to_thirty_seconds_and_accepts_positive_override(self):
+        for options, expected_duration in (([], 30), (["--duration", "7"], 7)):
+            with self.subTest(options=options):
+                with mock.patch.object(sys, "argv", ["record_activity.py", *options]):
+                    with mock.patch.object(record_activity, "record", return_value=0) as record:
+                        self.assertEqual(record_activity.main(), 0)
+                record.assert_called_once()
+                self.assertEqual(record.call_args.args[0].duration, expected_duration)
+
+    def test_cli_rejects_nonpositive_duration(self):
+        for value in ("0", "-1"):
+            with self.subTest(value=value):
+                with mock.patch.object(sys, "argv", ["record_activity.py", "--duration", value]):
+                    with mock.patch.object(sys, "stderr", io.StringIO()):
+                        with self.assertRaises(SystemExit) as error:
+                            record_activity.main()
+                self.assertEqual(error.exception.code, 2)
+
+    def run_timed_recording(self, events, duration=1, samples=None, expire_on_second_accel=False):
+        """Advance only fake serial-arrival/processing time; persist to real temp files."""
+        clock = SimpleNamespace(now=100.0)
+        parser_feed = SampleParser.feed
+        accel_lines = 0
+
+        class FakeReader:
+            def __init__(self):
+                self.events = list(events)
+                self.timeouts = []
+                self.closed = False
+
+            def read(self, timeout=1.0):
+                self.timeouts.append(timeout)
+                if len(self.timeouts) > 10:
+                    raise AssertionError("Recording did not stop at its deadline")
+                if self.events:
+                    elapsed, chunk = self.events.pop(0)
+                    clock.now += elapsed
+                    return chunk
+                clock.now += timeout
+                return None
+
+            def close(self):
+                self.closed = True
+
+        def feed_with_processing_delay(parser, line):
+            nonlocal accel_lines
+            result = parser_feed(parser, line)
+            if line.strip() == ACCEL_SLOPE:
+                accel_lines += 1
+                if expire_on_second_accel and accel_lines == 2:
+                    clock.now = 100.0 + duration
+            return result
+
+        reader = FakeReader()
+        console = io.StringIO()
+        with tempfile.TemporaryDirectory() as directory:
+            db_path = Path(directory) / "duration.sqlite3"
+            csv_path = Path(directory) / "duration.csv"
+            args = SimpleNamespace(
+                db=db_path, csv=csv_path, port="mock-serial", activity="normal",
+                notes="Duration regression", duration=duration, samples=samples,
+            )
+            with mock.patch.object(record_activity, "prepare_console"), \
+                 mock.patch.object(record_activity, "serial_port", return_value="mock-serial"), \
+                 mock.patch.object(record_activity, "SerialReader", return_value=reader), \
+                 mock.patch.object(record_activity.time, "monotonic", side_effect=lambda: clock.now), \
+                 mock.patch.object(SampleParser, "feed", new=feed_with_processing_delay), \
+                 mock.patch.object(sys, "stdout", console):
+                self.assertEqual(record_activity.record(args), 0)
+
+            self.assertTrue(reader.closed)
+            connection = sqlite3.connect(db_path)
+            try:
+                session = connection.execute("SELECT ended_at_utc FROM sessions").fetchone()
+                self.assertIsNotNone(session[0])
+                numbers = [row[0] for row in connection.execute("SELECT sample_number FROM samples ORDER BY id")]
+            finally:
+                connection.close()
+            with csv_path.open(newline="", encoding="utf-8") as handle:
+                csv_numbers = [int(row["sample_number"]) for row in csv.DictReader(handle)]
+            self.assertEqual(csv_numbers, numbers)
+        self.assertIn(f"Saved {len(numbers)} sample(s) this run.", console.getvalue())
+        return numbers, reader.timeouts, clock.now, console.getvalue()
+
+    @staticmethod
+    def frame(number):
+        return "\n".join([
+            f"Sample {number} TimeMs={number * 100} SlopeWindow=5",
+            ACCEL_SLOPE, GYRO_SLOPE, "",
+        ]).encode("ascii")
+
+    def test_reads_use_remaining_time_and_keep_completed_samples_when_deadline_expires(self):
+        partial = ("Sample 1 TimeMs=100 SlopeWindow=5\n" + ACCEL_SLOPE + "\n").encode("ascii")
+        numbers, timeouts, stopped, output = self.run_timed_recording([
+            (0.8, self.frame(0)), (0.15, partial),
+        ])
+        self.assertEqual(numbers, [0])
+        self.assertEqual(len(timeouts), 3)
+        for actual, expected in zip(timeouts, (1.0, 0.2, 0.05)):
+            self.assertAlmostEqual(actual, expected)
+        self.assertAlmostEqual(stopped, 101.0)
+        self.assertIn("1-second recording complete. Keeping all saved readings.", output)
+
+    def test_frame_completing_after_deadline_is_not_saved(self):
+        partial = ("Sample 1 TimeMs=100 SlopeWindow=5\n" + ACCEL_SLOPE + "\n").encode("ascii")
+        numbers, timeouts, _, _ = self.run_timed_recording([
+            (0.25, self.frame(0) + partial),
+            (0.76, (GYRO_SLOPE + "\n").encode("ascii")),
+        ])
+        self.assertEqual(numbers, [0])
+        self.assertEqual(len(timeouts), 2)
+        self.assertAlmostEqual(timeouts[1], 0.75)
+
+    def test_deadline_is_checked_while_processing_already_buffered_lines(self):
+        numbers, timeouts, stopped, _ = self.run_timed_recording(
+            [(0.1, self.frame(0) + self.frame(1))], expire_on_second_accel=True,
+        )
+        self.assertEqual(numbers, [0])
+        self.assertEqual(len(timeouts), 1)
+        self.assertAlmostEqual(stopped, 101.0)
+
+    def test_sample_limit_still_stops_before_duration_with_no_extra_saved_sample(self):
+        numbers, timeouts, stopped, _ = self.run_timed_recording(
+            [(0.1, self.frame(0) + self.frame(1))], duration=30, samples=1,
+        )
+        self.assertEqual(numbers, [0])
+        self.assertEqual(len(timeouts), 1)
+        self.assertAlmostEqual(stopped, 100.1)
+
+
+@unittest.skipUnless(os.name == "posix", "Console repair requires POSIX terminals")
+class ConsoleInterruptTests(unittest.TestCase):
+    def test_prepare_console_skips_redirected_files_and_streams_without_fileno(self):
+        import termios
+
+        with tempfile.TemporaryFile(mode="w+") as redirected:
+            for stream in (redirected, io.StringIO()):
+                with self.subTest(stream_type=type(stream).__name__):
+                    with mock.patch.multiple(record_activity.sys, stdin=stream, stdout=stream, stderr=stream):
+                        with mock.patch.object(termios, "tcgetattr") as get_attributes:
+                            with mock.patch.object(termios, "tcsetattr") as set_attributes:
+                                record_activity.prepare_console()
+                        get_attributes.assert_not_called()
+                        set_attributes.assert_not_called()
+
+    def test_prepare_console_repairs_only_interrupt_and_output_newline_settings(self):
+        import pty
+        import termios
+
+        master, slave = pty.openpty()
+        self.addCleanup(os.close, master)
+        self.addCleanup(os.close, slave)
+        settings = termios.tcgetattr(slave)
+        settings[0] |= termios.IXOFF
+        settings[1] &= ~(termios.OPOST | termios.ONLCR)
+        settings[3] &= ~termios.ISIG
+        settings[6][termios.VINTR] = bytes([os.fpathconf(slave, "PC_VDISABLE") & 0xFF])
+        settings[6][termios.VERASE] = b"\x08"
+        termios.tcsetattr(slave, termios.TCSANOW, settings)
+        before = termios.tcgetattr(slave)
+
+        with os.fdopen(os.dup(slave), "r") as stdin, \
+             os.fdopen(os.dup(slave), "w") as stdout, \
+             os.fdopen(os.dup(slave), "w") as stderr:
+            with mock.patch.multiple(record_activity.sys, stdin=stdin, stdout=stdout, stderr=stderr):
+                record_activity.prepare_console()
+
+        after = termios.tcgetattr(slave)
+        self.assertEqual(after[0], before[0])
+        self.assertEqual(after[1], before[1] | termios.OPOST | termios.ONLCR)
+        self.assertEqual(after[2], before[2])
+        self.assertEqual(after[3], before[3] | termios.ISIG)
+        self.assertEqual(after[4:6], before[4:6])
+        expected_characters = list(before[6])
+        expected_characters[termios.VINTR] = b"\x03"
+        self.assertEqual(after[6], expected_characters)
+
+    def test_actual_cli_ctrl_c_byte_stops_cleanly_from_initially_broken_console(self):
+        import fcntl
+        import pty
+        import termios
+
+        console_master, console_slave = pty.openpty()
+        serial_master, serial_slave = pty.openpty()
+        descriptors = {console_master, console_slave, serial_master, serial_slave}
+        process = None
+        output = bytearray()
+
+        def make_controlling_terminal():
+            # Keep terminal-generated signals in this child's own session/group.
+            os.setsid()
+            fcntl.ioctl(0, termios.TIOCSCTTY, 0)
+
+        def read_until(marker, timeout=8):
+            deadline = time.monotonic() + timeout
+            while marker not in output:
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    self.fail(f"Timed out waiting for {marker!r}; output: {output.decode(errors='replace')}")
+                ready, _, _ = select.select([console_master], [], [], min(remaining, 0.2))
+                if not ready:
+                    continue
+                try:
+                    chunk = os.read(console_master, 4096)
+                except OSError as error:
+                    if error.errno != errno.EIO:
+                        raise
+                    chunk = b""
+                if not chunk:
+                    self.fail(f"Console closed before {marker!r}; output: {output.decode(errors='replace')}")
+                output.extend(chunk)
+
+        try:
+            broken = termios.tcgetattr(console_slave)
+            broken[1] &= ~(termios.OPOST | termios.ONLCR)
+            broken[3] &= ~termios.ISIG
+            broken[6][termios.VINTR] = bytes([os.fpathconf(console_slave, "PC_VDISABLE") & 0xFF])
+            termios.tcsetattr(console_slave, termios.TCSANOW, broken)
+            serial_path = os.ttyname(serial_slave)
+            os.close(serial_slave)
+            descriptors.remove(serial_slave)
+
+            with tempfile.TemporaryDirectory() as directory:
+                db_path = Path(directory) / "interrupt.sqlite3"
+                csv_path = Path(directory) / "interrupt.csv"
+                command = [
+                    sys.executable, str(Path(record_activity.__file__).resolve()),
+                    "--port", serial_path, "--db", str(db_path), "--csv", str(csv_path),
+                    "--activity", "normal", "--notes", "Console interrupt regression",
+                ]
+                process = subprocess.Popen(
+                    command, stdin=console_slave, stdout=console_slave, stderr=console_slave,
+                    preexec_fn=make_controlling_terminal,
+                    env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1"},
+                )
+                os.close(console_slave)
+                descriptors.remove(console_slave)
+                read_until(b"Waiting for complete Sample")
+
+                frame = "\r\n".join([
+                    "Sample 6 TimeMs=600 SlopeWindow=5", ACCEL_SLOPE, GYRO_SLOPE, "",
+                ]).encode("ascii")
+                os.write(serial_master, frame)
+                read_until(b"Saved 1: sample 6")
+
+                # This is the keyboard byte, not a direct subprocess SIGINT.
+                os.write(console_master, b"\x03")
+                read_until(b"Session 1 ended.")
+                self.assertEqual(process.wait(timeout=3), 0, output.decode(errors="replace"))
+                self.assertIn(b"Stopping recording.", output)
+                self.assertIn(b"\r\n", output)
+
+                connection = sqlite3.connect(db_path)
+                try:
+                    ended, count = connection.execute(
+                        "SELECT ended_at_utc, (SELECT COUNT(*) FROM samples) FROM sessions"
+                    ).fetchone()
+                    self.assertIsNotNone(ended)
+                    self.assertEqual(count, 1)
+                finally:
+                    connection.close()
+                with csv_path.open(newline="", encoding="utf-8") as handle:
+                    rows = list(csv.DictReader(handle))
+                self.assertEqual(len(rows), 1)
+                self.assertEqual(rows[0]["sample_number"], "6")
+        finally:
+            if process is not None and process.poll() is None:
+                process.terminate()
+                try:
+                    process.wait(timeout=3)
+                except subprocess.TimeoutExpired:
+                    process.kill()
+                    process.wait(timeout=3)
+            for descriptor in descriptors:
+                os.close(descriptor)
 
 
 if __name__ == "__main__":

@@ -1,3 +1,0 @@
-../Core/Src/main.c:30:5:main	1
-../Core/Src/main.c:52:13:MX_GPIO_Init	1
-../Core/Src/main.c:71:13:BSP_GPIO_Init	1
