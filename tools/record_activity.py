@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
-"""Record the STM32's printed EWMA readings to SQLite and CSV on macOS/Linux.
+"""Record the STM32's printed EWMA readings to SQLite and CSV on Windows, macOS, and Linux.
 
 Uses Python's standard library only. Run with --help for examples and options.
 """
 
 import argparse
 import csv
+import ctypes
 from datetime import datetime, timezone
 import glob
 import math
@@ -19,6 +20,7 @@ import subprocess
 import sys
 import tempfile
 import time
+from ctypes import wintypes
 
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -488,7 +490,70 @@ class CSVRecorder:
         self.handle.close()
 
 
+_WINDOWS_PORT_RE = re.compile(r"^(?:\\\\\.\\)?COM([1-9][0-9]*)$", re.IGNORECASE)
+
+
+def _normalize_windows_port(value):
+    """Return a canonical COM name from COM3 or \\.\COM3 input."""
+    match = _WINDOWS_PORT_RE.fullmatch(str(value).strip())
+    if not match:
+        raise ValueError(
+            f"Invalid Windows serial port name: {value!r}. Use COMx, for example --port COM3."
+        )
+    return f"COM{int(match.group(1))}"
+
+
+def _windows_port_sort_key(path):
+    return int(path[3:])
+
+
+def _discover_windows_ports():
+    """Read registered serial ports without requiring pyserial."""
+    import winreg
+
+    ports = set()
+    try:
+        key = winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, r"HARDWARE\DEVICEMAP\SERIALCOMM")
+    except OSError:
+        return []
+    try:
+        index = 0
+        while True:
+            try:
+                _, value, _ = winreg.EnumValue(key, index)
+            except OSError:
+                break
+            index += 1
+            try:
+                ports.add(_normalize_windows_port(value))
+            except ValueError:
+                # Ignore registry entries that are not user-selectable COM names.
+                continue
+    finally:
+        winreg.CloseKey(key)
+    return sorted(ports, key=_windows_port_sort_key)
+
+
+def _windows_port(requested):
+    if requested != "auto":
+        return _normalize_windows_port(requested)
+    ports = _discover_windows_ports()
+    if not ports:
+        raise FileNotFoundError(
+            "No Windows serial port was found. Open Device Manager → Ports (COM & LPT) "
+            "to find the board's COM number, then use --port COMx."
+        )
+    if len(ports) > 1:
+        raise ValueError(
+            "Multiple Windows serial ports found; choose one with --port COMx:\n  "
+            + "\n  ".join(ports)
+        )
+    return ports[0]
+
+
 def serial_port(requested):
+    if sys.platform == "win32":
+        return _windows_port(requested)
     if requested != "auto":
         path = str(Path(requested).expanduser())
         if not Path(path).exists():
@@ -504,8 +569,8 @@ def serial_port(requested):
     return ports[0]
 
 
-class SerialReader:
-    """115200 8N1 serial input with no third-party Python dependencies."""
+class _PosixSerialReader:
+    """POSIX 115200 8N1 serial input with no third-party Python dependencies."""
 
     def __init__(self, path):
         import fcntl
@@ -553,6 +618,8 @@ class SerialReader:
             raise
 
     def read(self, timeout=1.0):
+        if self.fd is None:
+            raise OSError("Serial reader is closed")
         ready, _, _ = select.select([self.fd], [], [], timeout)
         if not ready:
             if not Path(self.path).exists():
@@ -564,18 +631,218 @@ class SerialReader:
         return chunk
 
     def close(self):
+        if self.fd is None:
+            return
+        fd = self.fd
+        self.fd = None
         try:
             if self.original is not None:
-                self.termios.tcsetattr(self.fd, self.termios.TCSANOW, self.original)
+                self.termios.tcsetattr(fd, self.termios.TCSANOW, self.original)
         except (OSError, self.termios.error):
             pass
         try:
             if hasattr(self.termios, "TIOCNXCL"):
-                self.fcntl.ioctl(self.fd, self.termios.TIOCNXCL)
+                self.fcntl.ioctl(fd, self.termios.TIOCNXCL)
         except OSError:
             pass
         finally:
-            os.close(self.fd)
+            os.close(fd)
+
+
+class _DCB(ctypes.Structure):
+    _fields_ = [
+        ("DCBlength", wintypes.DWORD),
+        ("BaudRate", wintypes.DWORD),
+        ("fBinary", wintypes.DWORD, 1),
+        ("fParity", wintypes.DWORD, 1),
+        ("fOutxCtsFlow", wintypes.DWORD, 1),
+        ("fOutxDsrFlow", wintypes.DWORD, 1),
+        ("fDtrControl", wintypes.DWORD, 2),
+        ("fDsrSensitivity", wintypes.DWORD, 1),
+        ("fTXContinueOnXoff", wintypes.DWORD, 1),
+        ("fOutX", wintypes.DWORD, 1),
+        ("fInX", wintypes.DWORD, 1),
+        ("fErrorChar", wintypes.DWORD, 1),
+        ("fNull", wintypes.DWORD, 1),
+        ("fRtsControl", wintypes.DWORD, 2),
+        ("fAbortOnError", wintypes.DWORD, 1),
+        ("fDummy2", wintypes.DWORD, 17),
+        ("wReserved", wintypes.WORD),
+        ("XonLim", wintypes.WORD),
+        ("XoffLim", wintypes.WORD),
+        ("ByteSize", wintypes.BYTE),
+        ("Parity", wintypes.BYTE),
+        ("StopBits", wintypes.BYTE),
+        ("XonChar", ctypes.c_char),
+        ("XoffChar", ctypes.c_char),
+        ("ErrorChar", ctypes.c_char),
+        ("EofChar", ctypes.c_char),
+        ("EvtChar", ctypes.c_char),
+        ("wReserved1", wintypes.WORD),
+    ]
+
+
+class _COMMTIMEOUTS(ctypes.Structure):
+    _fields_ = [
+        ("ReadIntervalTimeout", wintypes.DWORD),
+        ("ReadTotalTimeoutMultiplier", wintypes.DWORD),
+        ("ReadTotalTimeoutConstant", wintypes.DWORD),
+        ("WriteTotalTimeoutMultiplier", wintypes.DWORD),
+        ("WriteTotalTimeoutConstant", wintypes.DWORD),
+    ]
+
+
+def _last_windows_error():
+    getter = getattr(ctypes, "get_last_error", None)
+    return getter() if getter is not None else 0
+
+
+def _handle_is_invalid(handle):
+    value = getattr(handle, "value", handle)
+    return value is None or value == -1 or value == ctypes.c_void_p(-1).value
+
+
+class _WindowsSerialReader:
+    """Windows 115200 8N1 serial input using the Win32 API directly."""
+
+    GENERIC_READ = 0x80000000
+    GENERIC_WRITE = 0x40000000
+    OPEN_EXISTING = 3
+    ERROR_ACCESS_DENIED = 5
+
+    def __init__(self, path, api=None):
+        self.path = _normalize_windows_port(path)
+        self.device_path = rf"\\.\{self.path}"
+        self._handle = None
+        self._kernel32 = api
+        try:
+            if self._kernel32 is None:
+                loader = getattr(ctypes, "WinDLL", None)
+                if loader is None:
+                    raise OSError("Windows serial support is unavailable on this platform")
+                self._kernel32 = loader("kernel32", use_last_error=True)
+            self._set_api_signatures()
+            self._open_and_configure()
+        except BaseException:
+            self.close()
+            raise
+
+    def _set_api_signatures(self):
+        signatures = {
+            "CreateFileW": ([wintypes.LPCWSTR, wintypes.DWORD, wintypes.DWORD,
+                             wintypes.LPVOID, wintypes.DWORD, wintypes.DWORD, wintypes.HANDLE],
+                            wintypes.HANDLE),
+            "GetCommState": ([wintypes.HANDLE, ctypes.POINTER(_DCB)], wintypes.BOOL),
+            "SetCommState": ([wintypes.HANDLE, ctypes.POINTER(_DCB)], wintypes.BOOL),
+            "SetCommTimeouts": ([wintypes.HANDLE, ctypes.POINTER(_COMMTIMEOUTS)], wintypes.BOOL),
+            "ReadFile": ([wintypes.HANDLE, wintypes.LPVOID, wintypes.DWORD,
+                          wintypes.LPDWORD, wintypes.LPVOID], wintypes.BOOL),
+            "CloseHandle": ([wintypes.HANDLE], wintypes.BOOL),
+        }
+        for name, (argtypes, restype) in signatures.items():
+            function = getattr(self._kernel32, name)
+            try:
+                function.argtypes = argtypes
+                function.restype = restype
+            except (AttributeError, TypeError):
+                # Lightweight mocked APIs used by the unit tests need no ctypes metadata.
+                pass
+
+    def _open_and_configure(self):
+        self._handle = self._kernel32.CreateFileW(
+            self.device_path,
+            self.GENERIC_READ | self.GENERIC_WRITE,
+            0,
+            None,
+            self.OPEN_EXISTING,
+            0,
+            None,
+        )
+        if _handle_is_invalid(self._handle):
+            self._handle = None
+            self._raise_windows_error("Opening serial port")
+
+        state = _DCB()
+        state.DCBlength = ctypes.sizeof(state)
+        if not self._kernel32.GetCommState(self._handle, ctypes.byref(state)):
+            self._raise_windows_error("Reading serial-port configuration")
+        state.BaudRate = 115200
+        state.fBinary = 1
+        state.fParity = 0
+        state.fOutxCtsFlow = 0
+        state.fOutxDsrFlow = 0
+        state.fDtrControl = 0
+        state.fDsrSensitivity = 0
+        state.fTXContinueOnXoff = 0
+        state.fOutX = 0
+        state.fInX = 0
+        state.fErrorChar = 0
+        state.fNull = 0
+        state.fRtsControl = 0
+        state.fAbortOnError = 0
+        state.ByteSize = 8
+        state.Parity = 0
+        state.StopBits = 0
+        if not self._kernel32.SetCommState(self._handle, ctypes.byref(state)):
+            self._raise_windows_error("Configuring serial port")
+        self._set_timeout(0)
+
+    def _set_timeout(self, timeout):
+        milliseconds = max(0, min(int(math.ceil(float(timeout) * 1000)), 0xFFFFFFFF))
+        settings = _COMMTIMEOUTS(
+            ReadIntervalTimeout=0,
+            ReadTotalTimeoutMultiplier=0,
+            ReadTotalTimeoutConstant=milliseconds,
+            WriteTotalTimeoutMultiplier=0,
+            WriteTotalTimeoutConstant=0,
+        )
+        if not self._kernel32.SetCommTimeouts(self._handle, ctypes.byref(settings)):
+            self._raise_windows_error("Configuring serial read timeout")
+
+    def _raise_windows_error(self, operation):
+        error = _last_windows_error()
+        if error == self.ERROR_ACCESS_DENIED:
+            raise OSError(
+                f"{operation} failed for {self.path}: access denied. The COM port may already be "
+                "owned by CubeIDE, PuTTY, or another serial monitor; close it and retry."
+            )
+        if error in (2, 3, 1167):
+            raise OSError(f"{operation} failed for {self.path}: the port was not found or is disconnected.")
+        if error:
+            raise OSError(f"{operation} failed for {self.path} (Windows error {error}).")
+        raise OSError(f"{operation} failed for {self.path}.")
+
+    def read(self, timeout=1.0):
+        if self._handle is None:
+            raise OSError("Serial reader is closed")
+        self._set_timeout(timeout)
+        buffer = ctypes.create_string_buffer(4096)
+        received = wintypes.DWORD()
+        if not self._kernel32.ReadFile(
+            self._handle, buffer, ctypes.sizeof(buffer), ctypes.byref(received), None
+        ):
+            self._raise_windows_error("Reading serial port")
+        if received.value == 0:
+            return None
+        return buffer.raw[:received.value]
+
+    def close(self):
+        if self._handle is None:
+            return
+        handle = self._handle
+        self._handle = None
+        try:
+            self._kernel32.CloseHandle(handle)
+        except (AttributeError, OSError):
+            pass
+
+
+class SerialReader:
+    """Select the platform-specific 115200 8N1 serial reader."""
+
+    def __new__(cls, path):
+        reader = _WindowsSerialReader if sys.platform == "win32" else _PosixSerialReader
+        return reader(path)
 
 
 def prepare_console():
@@ -586,6 +853,9 @@ def prepare_console():
     Keep these corrected modes on exit so the shell can retain the repair.
     This is separate from configuring the board's serial device.
     """
+    if sys.platform == "win32":
+        return
+
     import termios
 
     for stream, is_input in ((sys.stdin, True), (sys.stdout, False), (sys.stderr, False)):
@@ -605,8 +875,6 @@ def prepare_console():
 
 
 def record(args):
-    if sys.platform == "win32":
-        raise ValueError("Serial recording currently supports macOS and Linux. SQLite/CSV files are portable.")
     if Path(args.db).expanduser().resolve() == Path(args.csv).expanduser().resolve():
         raise ValueError("The database and CSV must be different files.")
     prepare_console()

@@ -1,9 +1,8 @@
 # Record normal activities
 
-`record_activity.py` runs on your Mac, reads the application's UART
+`record_activity.py` runs on Windows, macOS, or Linux, reads the application's UART
 output, and appends complete samples to **both a SQLite database and a CSV file**.
-No additional Python packages are needed. Python 3 on macOS or Linux is required
-for serial recording. **Rebuild and flash the updated `CG2028_Assignment`
+No additional Python packages are needed. **Rebuild and flash the updated `CG2028_Assignment`
 firmware before recording:** it now sends vector magnitude instead of the
 arithmetic mean across axes. Old `Avg` serial output produces an explicit error
 so that averages cannot be mistaken for magnitudes. Sampling remains at 100 ms
@@ -23,7 +22,9 @@ STM32 accelerometer + gyroscope → UART output → Python logger
 
 1. Build/run `CG2028_Assignment` on the board and click Resume in CubeIDE if it
    is paused at `main()`.
-2. Close `screen` or any other serial viewer so the logger can own the port.
+2. Close CubeIDE's serial terminal, `screen`, PuTTY, or any other serial viewer so
+   the logger can own the port. On Windows, find the board under **Device Manager
+   → Ports (COM & LPT)**.
    For a named session, use `screen -S stm32 -X quit` in another Terminal tab.
    Otherwise, use `screen -ls` and `screen -S SESSION_ID -X quit`.
 3. Run:
@@ -37,6 +38,17 @@ The logger detects the USB serial device and uses 115200 baud, 8 data bits,
 no parity, 1 stop bit and no flow control. If multiple devices are connected,
 choose explicitly using `--port /dev/cu.usbmodemXXXX` (use the current name from
 `ls /dev/cu.usbmodem*`). The detected name can change when reconnecting the board.
+
+On Windows, automatic detection reads the registered COM ports. If exactly one is
+present it is selected; if there is more than one, choose the board explicitly:
+
+```powershell
+python tools\record_activity.py --port COM3 --activity normal-walking --notes "Trial 1"
+```
+
+If no Windows port is found, check **Device Manager → Ports (COM & LPT)** and
+rerun with that `COMx` name. CubeIDE's serial terminal, PuTTY, and other serial
+monitors must release the port before recording.
 
 Watch the readings and saved-row count in Terminal. **Each run automatically
 stops after 30 seconds**, keeping every complete sample saved to SQLite and CSV.

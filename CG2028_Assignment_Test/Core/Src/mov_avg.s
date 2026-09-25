@@ -15,7 +15,7 @@
 @ CG2028 Assignment
 @ (c) ECE NUS
 @ Write Student 1's Name here: Ryan Tan Rong Chang (A0306841H)
-@ Write Student 2's Name here: WXYZ (A0000007X)
+@ Write Student 2's Name here: Chong Kai Jie (A0306749U)
 @
 @ Function prototype:
 @   int ewma_filter(int new_data, int old_output, int alpha_percent);

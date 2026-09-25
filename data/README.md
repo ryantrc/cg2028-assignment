@@ -35,9 +35,19 @@ saved as it arrives. An incomplete sample at the deadline is discarded.
 running after recording stops. The logger enables Ctrl+C handling at startup.
 
 Each run appends a new session to the same files, preserving earlier runs.
-Starting the board alone does not save data on the Mac: the Python logger must
-also be running. No extra Python packages or separate Conda environment are
-needed on macOS/Linux.
+Starting the board alone does not save data on the computer: the Python logger
+must also be running. No extra Python packages or separate Conda environment are
+needed on Windows, macOS, or Linux.
+
+On Windows, find the board under **Device Manager → Ports (COM & LPT)** and use
+its COM number. For example:
+
+```powershell
+python tools\record_activity.py --port COM3 --activity normal-walking --notes "Trial 1"
+```
+
+Close CubeIDE's serial terminal, PuTTY, or another serial viewer first; only one
+program can own the COM port at a time.
 
 To use separate filenames for a trial:
 

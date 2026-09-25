@@ -1457,6 +1457,153 @@ class RecordingDurationTests(unittest.TestCase):
         for message in messages:
             self.assertIn(message.decode("ascii").strip(), output)
 
+    def test_recording_duration_is_supported_on_windows(self):
+        with mock.patch.object(sys, "platform", "win32"):
+            numbers, _, _, _ = self.run_timed_recording([(0.1, self.frame(0))])
+        self.assertEqual(numbers, [0])
+
+
+class FakeWindowsRegistry:
+    HKEY_LOCAL_MACHINE = object()
+
+    def __init__(self, values=(), open_error=None):
+        self.values = list(values)
+        self.open_error = open_error
+        self.key = object()
+
+    def OpenKey(self, root, path):
+        if self.open_error is not None:
+            raise self.open_error
+        return self.key
+
+    def EnumValue(self, key, index):
+        if index >= len(self.values):
+            raise OSError("end of registry values")
+        return (f"\\Device\\Serial{index}", self.values[index], 1)
+
+    def CloseKey(self, key):
+        self.closed = True
+
+
+class FakeWindowsSerialApi:
+    def __init__(self, handle=1234, read_results=()):
+        self.handle = handle
+        self.read_results = list(read_results)
+        self.create_file_calls = []
+        self.state = None
+        self.timeouts = []
+        self.close_calls = []
+
+    def CreateFileW(self, *args):
+        self.create_file_calls.append(args)
+        return self.handle
+
+    def GetCommState(self, handle, state):
+        self.state = state._obj
+        return True
+
+    def SetCommState(self, handle, state):
+        self.state = state._obj
+        return True
+
+    def SetCommTimeouts(self, handle, settings):
+        self.timeouts.append(settings._obj)
+        return True
+
+    def ReadFile(self, handle, buffer, size, received, overlapped):
+        result = self.read_results.pop(0)
+        if result is False:
+            return False
+        if result:
+            record_activity.ctypes.memmove(buffer, result, len(result))
+            received._obj.value = len(result)
+        else:
+            received._obj.value = 0
+        return True
+
+    def CloseHandle(self, handle):
+        self.close_calls.append(handle)
+        return True
+
+
+class WindowsSerialTests(unittest.TestCase):
+    def with_registry(self, registry):
+        return mock.patch.dict(sys.modules, {"winreg": registry})
+
+    def test_explicit_windows_ports_are_normalized_and_malformed_names_rejected(self):
+        with mock.patch.object(sys, "platform", "win32"):
+            self.assertEqual(record_activity.serial_port("COM3"), "COM3")
+            self.assertEqual(record_activity.serial_port("com3"), "COM3")
+            self.assertEqual(record_activity.serial_port(r"\\.\COM10"), "COM10")
+            for malformed in ("COM", "COM0", "COM3:", r"\.\COM3", "/dev/ttyUSB0"):
+                with self.subTest(malformed=malformed):
+                    with self.assertRaisesRegex(ValueError, "Invalid Windows serial port"):
+                        record_activity.serial_port(malformed)
+
+    def test_windows_auto_discovery_handles_zero_one_and_multiple_ports(self):
+        with mock.patch.object(sys, "platform", "win32"):
+            missing = FakeWindowsRegistry(open_error=FileNotFoundError())
+            with self.with_registry(missing):
+                with self.assertRaises(FileNotFoundError):
+                    record_activity.serial_port("auto")
+            with self.with_registry(FakeWindowsRegistry(["COM7"])):
+                self.assertEqual(record_activity.serial_port("auto"), "COM7")
+            registry = FakeWindowsRegistry(["COM10", "com3"])
+            with self.with_registry(registry):
+                with self.assertRaisesRegex(ValueError, r"COM3[\s\S]*COM10"):
+                    record_activity.serial_port("auto")
+
+    def test_reader_selection_and_windows_console_preparation(self):
+        windows_reader = object()
+        posix_reader = object()
+        with mock.patch.object(record_activity, "_WindowsSerialReader", return_value=windows_reader) as windows:
+            with mock.patch.object(record_activity, "_PosixSerialReader", return_value=posix_reader) as posix:
+                with mock.patch.object(sys, "platform", "win32"):
+                    self.assertIs(record_activity.SerialReader("COM3"), windows_reader)
+                with mock.patch.object(sys, "platform", "linux"):
+                    self.assertIs(record_activity.SerialReader("/dev/ttyUSB0"), posix_reader)
+        windows.assert_called_once_with("COM3")
+        posix.assert_called_once_with("/dev/ttyUSB0")
+        with mock.patch.object(sys, "platform", "win32"):
+            with mock.patch.object(sys, "stdin", object()), mock.patch.object(sys, "stdout", object()), \
+                 mock.patch.object(sys, "stderr", object()):
+                record_activity.prepare_console()
+
+    def test_windows_reader_opens_exclusively_and_configures_115200_8n1_without_flow_control(self):
+        api = FakeWindowsSerialApi()
+        reader = record_activity._WindowsSerialReader(r"\\.\COM10", api=api)
+        self.assertEqual(api.create_file_calls[0][0], r"\\.\COM10")
+        self.assertEqual(api.create_file_calls[0][2], 0)
+        self.assertEqual(api.state.BaudRate, 115200)
+        self.assertEqual(api.state.ByteSize, 8)
+        self.assertEqual(api.state.Parity, 0)
+        self.assertEqual(api.state.StopBits, 0)
+        for field in ("fOutxCtsFlow", "fOutxDsrFlow", "fOutX", "fInX"):
+            self.assertEqual(getattr(api.state, field), 0)
+        reader.close()
+        reader.close()
+        self.assertEqual(api.close_calls, [1234])
+
+    def test_windows_reader_returns_bytes_on_data_and_none_on_timeout(self):
+        api = FakeWindowsSerialApi(read_results=[b"abc", b""])
+        reader = record_activity._WindowsSerialReader("COM3", api=api)
+        self.assertEqual(reader.read(0.125), b"abc")
+        self.assertIsNone(reader.read(0.25))
+        self.assertEqual(api.timeouts[-2].ReadTotalTimeoutConstant, 125)
+        self.assertEqual(api.timeouts[-1].ReadTotalTimeoutConstant, 250)
+        reader.close()
+
+    def test_windows_reader_reports_port_ownership_and_io_errors(self):
+        with mock.patch.object(record_activity, "_last_windows_error", return_value=5):
+            with self.assertRaisesRegex(OSError, "CubeIDE, PuTTY"):
+                record_activity._WindowsSerialReader("COM3", api=FakeWindowsSerialApi(handle=-1))
+        api = FakeWindowsSerialApi(read_results=[False])
+        reader = record_activity._WindowsSerialReader("COM3", api=api)
+        with mock.patch.object(record_activity, "_last_windows_error", return_value=1167):
+            with self.assertRaisesRegex(OSError, "disconnected"):
+                reader.read(1)
+        reader.close()
+
 
 @unittest.skipUnless(os.name == "posix", "Console repair requires POSIX terminals")
 class ConsoleInterruptTests(unittest.TestCase):

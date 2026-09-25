@@ -109,12 +109,20 @@ fault occurs; reset the board to begin another trial.
 
 1. Build `CG2028_Assignment` in CubeIDE, start debugging to upload the new
    firmware, and click **Resume** if execution stops at `main()`.
-2. Close `screen` or any other program using the serial port.
+2. Close CubeIDE's serial terminal, `screen`, PuTTY, or any other program using
+   the serial port. On Windows, find the board under **Device Manager → Ports
+   (COM & LPT)** and note its `COMx` name.
 3. Start the recorder from the repository root:
 
    ```bash
-   python3 tools/record_activity.py --activity prototype1-quiet-after-spike \
-     --notes "Trial 1: board moved by hand; sudden movement then held still"
+    python3 tools/record_activity.py --activity prototype1-quiet-after-spike \
+      --notes "Trial 1: board moved by hand; sudden movement then held still"
+    ```
+
+   On Windows, pass the COM port explicitly when needed:
+
+   ```powershell
+   python tools\record_activity.py --port COM3 --activity prototype1-quiet-after-spike --notes "Trial 1: board moved by hand; sudden movement then held still"
    ```
 
 4. Allow startup to settle, then perform the intended movement. Leave enough
