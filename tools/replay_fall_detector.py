@@ -20,7 +20,7 @@ import tempfile
 
 
 ROOT = Path(__file__).resolve().parent.parent
-DEFAULT_DATABASE = ROOT / "data" / "activity_readings.sqlite3"
+DEFAULT_DATABASE = ROOT / "data" / "calibration_readings.sqlite3"
 HEADER_DIRECTORY = ROOT / "CG2028_Assignment" / "Core" / "Inc"
 UINT32_MASK = 0xFFFFFFFF
 MEASUREMENT_FIELDS = (

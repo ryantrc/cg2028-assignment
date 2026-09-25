@@ -20,6 +20,8 @@ import sys
 import tempfile
 import time
 
+from detector_verdicts import VerdictRecorder, parse_diagnostic
+
 
 ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = ROOT / "data"
@@ -174,6 +176,11 @@ class RecordingDatabase:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self.connection = sqlite3.connect(self.path)
         self.connection.row_factory = sqlite3.Row
+        if self.connection.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='table' AND name='verdict_metadata'"
+        ).fetchone():
+            self.connection.close()
+            raise ValueError("This is a test-verdict database. Use --test or choose another --db path.")
         self.connection.execute("PRAGMA foreign_keys = ON")
         self.connection.execute("PRAGMA journal_mode = WAL")
         self.connection.execute("PRAGMA synchronous = FULL")
@@ -393,6 +400,29 @@ class RecordingDatabase:
                 "UPDATE sessions SET ended_at_utc = ? WHERE id = ?", (utc_now(), session_id)
             )
 
+    def append_diagnostic(self, session_id, line):
+        """Keep free-mode messages in its own DB; malformed lines cannot stop it."""
+        try:
+            parsed = parse_diagnostic(line)
+            error = None
+        except ValueError as problem:
+            parsed, error = None, str(problem)
+        with self.connection:
+            self.connection.execute("""CREATE TABLE IF NOT EXISTS detector_events (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                session_id INTEGER NOT NULL REFERENCES sessions(id),
+                timestamp_utc TEXT NOT NULL, raw_line TEXT NOT NULL,
+                parse_valid INTEGER NOT NULL, parse_error TEXT,
+                board_time_ms INTEGER, state TEXT, event TEXT, alarm INTEGER, sensors TEXT
+            )""")
+            fields = ("board_time_ms", "state", "event", "alarm", "sensors")
+            self.connection.execute("""INSERT INTO detector_events
+                (session_id,timestamp_utc,raw_line,parse_valid,parse_error,
+                 board_time_ms,state,event,alarm,sensors) VALUES (?,?,?,?,?,?,?,?,?,?)""",
+                (session_id, utc_now(), line, int(parsed is not None), error,
+                 *((parsed or {}).get(field) for field in fields)))
+        return parsed
+
     def close(self):
         self.connection.close()
 
@@ -548,6 +578,9 @@ class SerialReader:
             termios.tcsetattr(self.fd, termios.TCSANOW, settings)
             if hasattr(termios, "TIOCEXCL"):
                 fcntl.ioctl(self.fd, termios.TIOCEXCL)
+            # Discard bytes left queued by an earlier serial viewer/run. A
+            # previous run's decision must not be recorded as a new event.
+            termios.tcflush(self.fd, termios.TCIFLUSH)
         except BaseException:
             self.close()
             raise
@@ -604,32 +637,105 @@ def prepare_console():
             termios.tcsetattr(fd, termios.TCSANOW, settings)
 
 
+class RecordingProgress:
+    """One live terminal line, or plain snapshots when output is redirected."""
+
+    def __init__(self, stream=None):
+        self.stream = sys.stdout if stream is None else stream
+        self.interactive = self.stream.isatty()
+        self.count = 0
+        self.state = "UNKNOWN"
+        self.alarm = "UNKNOWN"
+        self.last_line = None
+        self.visible = False
+        self.started = False
+
+    def update(self, count=None, diagnostic=None):
+        if count is not None:
+            self.count = count
+        if diagnostic is not None:
+            self.state = diagnostic["state"]
+            self.alarm = diagnostic["alarm"]
+        self.started = True
+        self._render()
+
+    def _render(self, force=False):
+        line = f"reading no. = {self.count} State = {self.state} Alarm = {self.alarm}"
+        if not force and line == self.last_line:
+            return
+        if self.interactive:
+            # Clear the whole old line, including a longer previous state or
+            # an echoed Ctrl+C, then redraw without scrolling the terminal.
+            self.stream.write("\r\x1b[2K" + line)
+            self.visible = True
+        else:
+            self.stream.write(line + "\n")
+        self.stream.flush()
+        self.last_line = line
+
+    def message(self, text, *, file=None):
+        if self.interactive and self.visible:
+            self.stream.write("\r\x1b[2K")
+            self.stream.flush()
+            self.visible = False
+        print(text, file=self.stream if file is None else file, flush=True)
+        if self.interactive and self.started:
+            self._render(force=True)
+
+    def finish(self, count=None):
+        if not self.started:
+            return
+        self.update(count=count)
+        if self.interactive and self.visible:
+            self.stream.write("\n")
+            self.stream.flush()
+            self.visible = False
+
+
 def record(args):
     if sys.platform == "win32":
         raise ValueError("Serial recording currently supports macOS and Linux. SQLite/CSV files are portable.")
-    if Path(args.db).expanduser().resolve() == Path(args.csv).expanduser().resolve():
-        raise ValueError("The database and CSV must be different files.")
+    validate_output_paths([args.db, args.csv])
+    mode = getattr(args, "mode", "calibration")
     prepare_console()
     path = serial_port(args.port)
     reader = SerialReader(path)
     database = None
     csv_file = None
+    verdicts = None
+    verdict_run_id = None
     session_id = None
     count = 0
+    stop_reason = "ERROR"
+    fall_detected = False
+    progress = RecordingProgress()
     try:
-        database = RecordingDatabase(args.db)
-        csv_file = CSVRecorder(args.csv, database)
-        session_id = database.start_session(args.activity, args.notes, path)
+        if mode == "test":
+            verdicts = VerdictRecorder(args.db, args.csv)
+            verdict_run_id = verdicts.start_test(
+                args.activity, args.verdict, args.notes, utc_now(), path
+            )
+            run = verdicts.get_run(verdict_run_id)
+            session_id, run_label = run["session_id"], run["activity"]
+        else:
+            database = RecordingDatabase(args.db)
+            set_recording_dataset(database, "prototype" if mode == "free" else "calibration")
+            csv_file = CSVRecorder(args.csv, database)
+            run_label = args.activity or mode
+            session_id = database.start_session(run_label, args.notes, path)
         start = time.monotonic()
         deadline = start + args.duration if args.duration else None
         duration_reached = False
-        print(f"Recording session {session_id}: {args.activity} from {path} at 115200 baud", flush=True)
+        print(f"Recording session {session_id} ({mode}): {run_label} from {path} at 115200 baud", flush=True)
         print(f"SQLite: {Path(args.db).expanduser().resolve()}\nCSV:    {Path(args.csv).expanduser().resolve()}", flush=True)
+        if verdicts is not None:
+            print(f"Expected verdict: {args.verdict} (does not control the detector)", flush=True)
         if args.duration:
             print(f"Recording for {args.duration} seconds. Press Ctrl+C to stop early.", flush=True)
         else:
-            print("Press Ctrl+C to stop.", flush=True)
+            print("Running until a fall is detected. Press Ctrl+C to stop early.", flush=True)
         print("Waiting for complete Sample / Accel / Gyro readings...", flush=True)
+        progress.update(count=0)
         parser = SampleParser()
         pending_bytes = b""
         last_sample_time = start
@@ -646,7 +752,8 @@ def record(args):
             try:
                 chunk = reader.read(timeout=timeout)
             except OSError as error:
-                print(f"Serial connection lost: {error}. Saved rows are retained. Reconnect and rerun the command.", file=sys.stderr, flush=True)
+                stop_reason = "DISCONNECTED"
+                progress.message(f"Serial connection lost: {error}. Saved rows are retained. Reconnect and rerun the command.", file=sys.stderr)
                 return 1
             if deadline is not None and time.monotonic() >= deadline:
                 duration_reached = True
@@ -661,51 +768,100 @@ def record(args):
                     sample = parser.feed(line.decode("ascii", errors="replace"))
                     if sample is None:
                         if line.startswith(b"WARNING:"):
-                            print(line.decode("ascii", errors="replace").strip(), file=sys.stderr)
+                            progress.message(line.decode("ascii", errors="replace").strip(), file=sys.stderr)
                         elif line.startswith(b"DETECTOR "):
-                            # Show firmware decisions/status without changing
-                            # the measurement-only SQLite/CSV schema or labels.
-                            print(line.decode("ascii", errors="replace").strip(), flush=True)
+                            diagnostic = line.decode("ascii", errors="replace").strip()
+                            try:
+                                parsed = parse_diagnostic(diagnostic)
+                            except ValueError:
+                                parsed = None
+                            if verdicts is not None:
+                                verdicts.append_line(verdict_run_id, diagnostic, utc_now())
+                            elif mode == "free":
+                                database.append_diagnostic(session_id, diagnostic)
+                            if parsed is None:
+                                progress.message("WARNING: Invalid detector diagnostic ignored for display: " + diagnostic,
+                                                 file=sys.stderr)
+                            else:
+                                # State can change after the final sensor frame,
+                                # including the alarm that stops a free run.
+                                progress.update(diagnostic=parsed)
+                                if mode == "free" and parsed["alarm"] == 1 and parsed["state"] == "FALL_LATCHED":
+                                    fall_detected = True
+                                    stop_reason = "FALL_DETECTED"
+                                    if parsed["event"] == "POSSIBLE_FALL":
+                                        progress.message("Fall detected. Saving data and stopping the free run.")
+                                    else:
+                                        progress.message("Fall detected: the board reports an existing latched alarm. "
+                                                         "Stopping; reset the board before a fresh run.")
+                                    break
+                                if parsed["event"] != "STATUS":
+                                    progress.message(diagnostic)
                         continue
                     if last_number is not None and sample["sample_number"] <= last_number:
-                        print("Board sample counter restarted; keeping new rows with unique database IDs.", flush=True)
+                        progress.message("Board sample counter restarted; keeping new rows with unique database IDs.")
                     last_number = sample["sample_number"]
-                    row = database.append_sample(session_id, sample)
-                    csv_file.append(row)
+                    if verdicts is not None:
+                        verdicts.append_sample(verdict_run_id, sample, utc_now())
+                    else:
+                        row = database.append_sample(session_id, sample)
+                        csv_file.append(row)
                     count += 1
                     last_sample_time = time.monotonic()
                     idle_notice = False
-                    print(f"Saved {count}: sample {sample['sample_number']} | "
-                          f"Accel X={sample['accel_x_mps2']:.3f} Y={sample['accel_y_mps2']:.3f} "
-                          f"Z={sample['accel_z_mps2']:.3f} Magnitude={sample['accel_magnitude_mps2']:.3f}"
-                          f"{metric_text(sample, 'accel')} | "
-                          f"Gyro X={sample['gyro_x_dps']:.3f} Y={sample['gyro_y_dps']:.3f} "
-                          f"Z={sample['gyro_z_dps']:.3f} Magnitude={sample['gyro_magnitude_dps']:.3f}"
-                          f"{metric_text(sample, 'gyro')}", flush=True)
+                    progress.update(count=count)
                     if args.samples and count >= args.samples:
                         break
                 if len(pending_bytes) > 65536:
                     pending_bytes = b""
                     parser.reset()
-            if duration_reached:
+            if duration_reached or fall_detected:
                 break
             if not idle_notice and time.monotonic() - last_sample_time > 10:
-                print("No complete sample for 10 seconds. Resume the board in CubeIDE and check that its output includes Magnitude.", flush=True)
+                progress.message("No complete sample for 10 seconds. Resume the board in CubeIDE and check that its output includes Magnitude.")
                 idle_notice = True
         if duration_reached:
-            print(f"{args.duration}-second recording complete. Keeping all saved readings.", flush=True)
+            stop_reason = "DURATION"
+            progress.message(f"{args.duration}-second recording complete. Keeping all saved readings.")
+        elif not fall_detected:
+            stop_reason = "SAMPLE_LIMIT"
     except KeyboardInterrupt:
-        print("\nStopping recording.", flush=True)
+        stop_reason = "INTERRUPTED"
+        progress.message("Stopping recording.")
     finally:
-        reader.close()
-        if csv_file is not None:
-            csv_file.close()
-        if database is not None:
+        # Always close every resource even if finalizing one output fails.
+        # Each database has already committed its received rows independently.
+        try:
             try:
-                if session_id is not None:
-                    database.finish_session(session_id)
+                reader.close()
             finally:
-                database.close()
+                try:
+                    if csv_file is not None:
+                        csv_file.close()
+                finally:
+                    try:
+                        if database is not None:
+                            try:
+                                if session_id is not None:
+                                    # SQLite may have committed the final sample
+                                    # before a CSV write failed or Ctrl+C arrived.
+                                    # Report the durable count, not loop progress.
+                                    count = database.connection.execute(
+                                        "SELECT COUNT(*) FROM samples WHERE session_id = ?", (session_id,)
+                                    ).fetchone()[0]
+                                    database.finish_session(session_id)
+                            finally:
+                                database.close()
+                    finally:
+                        if verdicts is not None:
+                            try:
+                                if verdict_run_id is not None:
+                                    count = verdicts.count_samples(verdict_run_id)
+                                    verdicts.finish_run(verdict_run_id, utc_now(), stop_reason, count)
+                            finally:
+                                verdicts.close()
+        finally:
+            progress.finish(count=count)
         if session_id is not None:
             print(f"Session {session_id} ended. Saved {count} sample(s) this run.", flush=True)
     return 0
@@ -725,12 +881,21 @@ def metric_text(sample, sensor):
     return "".join(values)
 
 
-def show_summary(path):
+def show_summary(path, mode="calibration"):
     path = Path(path).expanduser().resolve()
     if not path.is_file():
         raise FileNotFoundError(f"No recordings yet: {path}")
     connection = sqlite3.connect(path.as_uri() + "?mode=ro", uri=True)
     try:
+        if mode == "test":
+            fields = {row[1] for row in connection.execute("PRAGMA table_info(runs)")}
+            expected = "expected_verdict" if "expected_verdict" in fields else "NULL"
+            rows = connection.execute(f"SELECT session_id,activity,{expected},observed_verdict,sample_count "
+                                      "FROM runs ORDER BY run_id")
+            print("Session | Name | Expected | Observed | Samples")
+            for row in rows:
+                print(" | ".join("" if value is None else str(value) for value in row))
+            return
         rows = connection.execute("""
             SELECT s.id, s.activity, s.started_at_utc, COUNT(p.id)
             FROM sessions s LEFT JOIN samples p ON p.session_id = s.id
@@ -751,23 +916,80 @@ def positive(value):
     return value
 
 
+def validate_output_paths(paths):
+    resolved = [Path(path).expanduser().resolve() for path in paths]
+    for index, path in enumerate(resolved):
+        for other in resolved[:index]:
+            if path == other or (path.exists() and other.exists() and path.samefile(other)):
+                raise ValueError("Measurements and verdicts must use different database/CSV files.")
+
+
+def set_recording_dataset(database, dataset):
+    """Prevent a custom path from silently mixing the two purposes again."""
+    row = database.connection.execute(
+        "SELECT value FROM recording_metadata WHERE key = 'recording_dataset'"
+    ).fetchone()
+    if row is not None and row[0] != dataset:
+        raise ValueError(f"This database contains {row[0]} recordings, not {dataset}. "
+                         "Choose the matching mode or different output files.")
+    with database.connection:
+        database.connection.execute(
+            "INSERT OR IGNORE INTO recording_metadata (key, value) VALUES ('recording_dataset', ?)",
+            (dataset,),
+        )
+
+
+def configure_output_paths(args):
+    """Validate the mode before opening files or the serial port."""
+    if args.mode != "test" and args.verdict is not None:
+        raise ValueError("--verdict is only allowed with --test.")
+    if args.mode == "test" and not args.summary and args.verdict is None:
+        raise ValueError("--test requires --verdict fall, near-fall, or normal.")
+    if args.activity is not None and not args.activity.strip():
+        raise ValueError("--name must not be empty.")
+    if args.mode == "calibration":
+        if args.duration not in (None, DEFAULT_DURATION_SECONDS) or args.samples is not None:
+            raise ValueError("--calibration records for 30 seconds; omit --duration and --samples.")
+        args.duration = DEFAULT_DURATION_SECONDS
+    elif args.mode == "free":
+        if args.duration is not None or args.samples is not None:
+            raise ValueError("--free runs until a fall is detected; omit --duration and --samples.")
+    elif args.duration is None:
+        args.duration = DEFAULT_DURATION_SECONDS
+    stem = {"test": "prototype_verdicts", "free": "prototype_readings",
+            "calibration": "calibration_readings"}[args.mode]
+    if args.db is None:
+        args.db = DATA_DIR / f"{stem}.sqlite3"
+    if args.csv is None:
+        args.csv = args.db.with_suffix(".csv")
+    validate_output_paths([args.db, args.csv])
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
+    modes = parser.add_mutually_exclusive_group(required=True)
+    modes.add_argument("--test", dest="mode", action="store_const", const="test",
+                       help="Record a test with an expected verdict (30 seconds by default)")
+    modes.add_argument("--calibration", dest="mode", action="store_const", const="calibration",
+                       help="Record calibration measurements for 30 seconds")
+    modes.add_argument("--free", dest="mode", action="store_const", const="free",
+                       help="Record freely until the board reports a fall")
     parser.add_argument("--port", default="auto", help="USB serial device, or auto (default)")
-    parser.add_argument("--activity", default="normal", help="Your label, e.g. normal, walking, sitting")
+    parser.add_argument("--name", "--activity", dest="activity",
+                        help="Run name; test names automatically end with the expected verdict")
+    parser.add_argument("--verdict", choices=("fall", "near-fall", "normal"),
+                        help="Expected test result; never influences the firmware")
     parser.add_argument("--notes", default="", help="Optional context, e.g. board placement")
-    parser.add_argument("--db", type=Path, default=DATA_DIR / "activity_readings.sqlite3")
-    parser.add_argument("--csv", type=Path, default=DATA_DIR / "activity_readings.csv")
-    parser.add_argument("--duration", type=positive, default=DEFAULT_DURATION_SECONDS,
-                        help="Stop after this many seconds (default: %(default)s)")
-    parser.add_argument("--samples", type=positive, help="Stop after this many complete samples")
+    parser.add_argument("--db", type=Path, help="Override the selected mode's database")
+    parser.add_argument("--csv", type=Path, help="Override its CSV (otherwise derived from --db)")
+    parser.add_argument("--duration", type=positive, help="Test duration in seconds (default: 30)")
+    parser.add_argument("--samples", type=positive, help="Optional early sample limit for --test")
     parser.add_argument("--summary", action="store_true", help="Show saved sessions without opening the serial port")
     args = parser.parse_args()
-    if not args.activity.strip():
-        parser.error("--activity must not be empty")
     try:
+        configure_output_paths(args)
         if args.summary:
-            show_summary(args.db)
+            show_summary(args.db, args.mode)
             return 0
         return record(args)
     except (OSError, ValueError, sqlite3.Error) as error:

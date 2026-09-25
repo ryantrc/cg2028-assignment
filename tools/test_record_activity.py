@@ -1315,11 +1315,47 @@ class MagnitudeMigrationTests(unittest.TestCase):
         self.assertEqual(list((self.directory / "backups").glob("*")), [])
 
 
+class RecordingProgressTests(unittest.TestCase):
+    class Terminal(io.StringIO):
+        def isatty(self):
+            return True
+
+    def test_terminal_updates_one_line_and_clears_before_important_message(self):
+        console = self.Terminal()
+        progress = record_activity.RecordingProgress(console)
+        progress.update(count=0)
+        progress.update(count=42, diagnostic={"state": "FALL_LATCHED", "alarm": 1})
+        self.assertNotIn("\n", console.getvalue())
+        progress.message("Important detector event")
+        progress.update(diagnostic={"state": "NORMAL", "alarm": 0})
+        progress.finish()
+        output = console.getvalue()
+        self.assertIn("\r\x1b[2KImportant detector event\n", output)
+        self.assertEqual(output.count("Important detector event"), 1)
+        self.assertTrue(output.endswith("\r\x1b[2Kreading no. = 42 State = NORMAL Alarm = 0\n"))
+
+    def test_redirected_progress_has_plain_snapshots_without_repeated_status(self):
+        console = io.StringIO()
+        progress = record_activity.RecordingProgress(console)
+        progress.update(count=0)
+        for _ in range(3):
+            progress.update(diagnostic={"state": "NORMAL", "alarm": 0})
+        progress.update(count=2)
+        progress.finish()
+        self.assertEqual(console.getvalue().splitlines(), [
+            "reading no. = 0 State = UNKNOWN Alarm = UNKNOWN",
+            "reading no. = 0 State = NORMAL Alarm = 0",
+            "reading no. = 2 State = NORMAL Alarm = 0",
+        ])
+        self.assertNotIn("\r", console.getvalue())
+        self.assertNotIn("\x1b", console.getvalue())
+
+
 class RecordingDurationTests(unittest.TestCase):
     def test_cli_defaults_to_thirty_seconds_and_accepts_positive_override(self):
         for options, expected_duration in (([], 30), (["--duration", "7"], 7)):
             with self.subTest(options=options):
-                with mock.patch.object(sys, "argv", ["record_activity.py", *options]):
+                with mock.patch.object(sys, "argv", ["record_activity.py", "--test", "--verdict", "normal", *options]):
                     with mock.patch.object(record_activity, "record", return_value=0) as record:
                         self.assertEqual(record_activity.main(), 0)
                 record.assert_called_once()
@@ -1328,7 +1364,7 @@ class RecordingDurationTests(unittest.TestCase):
     def test_cli_rejects_nonpositive_duration(self):
         for value in ("0", "-1"):
             with self.subTest(value=value):
-                with mock.patch.object(sys, "argv", ["record_activity.py", "--duration", value]):
+                with mock.patch.object(sys, "argv", ["record_activity.py", "--test", "--verdict", "normal", "--duration", value]):
                     with mock.patch.object(sys, "stderr", io.StringIO()):
                         with self.assertRaises(SystemExit) as error:
                             record_activity.main()
@@ -1555,6 +1591,7 @@ class ConsoleInterruptTests(unittest.TestCase):
                 csv_path = Path(directory) / "interrupt.csv"
                 command = [
                     sys.executable, str(Path(record_activity.__file__).resolve()),
+                    "--free",
                     "--port", serial_path, "--db", str(db_path), "--csv", str(csv_path),
                     "--activity", "normal", "--notes", "Console interrupt regression",
                 ]
@@ -1571,7 +1608,7 @@ class ConsoleInterruptTests(unittest.TestCase):
                     "Sample 6 TimeMs=600 SlopeWindow=5", ACCEL_SLOPE, GYRO_SLOPE, "",
                 ]).encode("ascii")
                 os.write(serial_master, frame)
-                read_until(b"Saved 1: sample 6")
+                read_until(b"reading no. = 1 State = UNKNOWN Alarm = UNKNOWN")
 
                 # This is the keyboard byte, not a direct subprocess SIGINT.
                 os.write(console_master, b"\x03")

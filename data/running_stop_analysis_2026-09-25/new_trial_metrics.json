@@ -1,0 +1,4835 @@
+{
+  "method": "Read-only source calibration SQLite; units are stored EWMA metrics; all main contiguous segments retained; old27 and31 have2 stale prefix frames removed; seconds relative to first kept sample. Wholetrial summaries descriptive, no claimed validation. Quiet tail = complete1s bins with mean Amsd<.005,Gmsd<1,Gmag<5.",
+  "records": [
+    {
+      "session_id": 44,
+      "notes": "Trial 41: Grandma runs at continuous pace",
+      "activity": "running-continuously",
+      "trial": 41,
+      "raw_n": 301,
+      "kept_n": 301,
+      "dropped_prefix_or_other_segments": 0,
+      "duration_s": 30.142,
+      "first_sample_number": 13710,
+      "last_sample_number": 14010,
+      "counter_discontinuities": 0,
+      "missing_counters": 0,
+      "nonpositive_time_deltas": 0,
+      "time_gaps_gt250ms": 0,
+      "dt_min_ms": 100.0,
+      "dt_median_ms": 100.0,
+      "dt_max_ms": 101.0,
+      "dt_p95_ms": 101.0,
+      "nullable_metric_counts": {
+        "board_time_ms": 0,
+        "accel_msd": 0,
+        "gyro_msd": 0,
+        "accel_magnitude_slope": 0,
+        "gyro_magnitude_slope": 0,
+        "accel_msd_slope": 0,
+        "gyro_msd_slope": 0
+      },
+      "accel_msd": {
+        "min": 0.001570782,
+        "median": 1.477338,
+        "mean": 1.906509348398671,
+        "p95": 4.503626,
+        "max": 6.151377
+      },
+      "gyro_msd": {
+        "min": 2.102431,
+        "median": 463.5422,
+        "mean": 492.62745391029904,
+        "p95": 1076.583,
+        "max": 1561.914
+      },
+      "accel_magnitude_mps2": {
+        "min": 4.215,
+        "median": 8.482,
+        "mean": 8.526222591362126,
+        "p95": 11.408,
+        "max": 12.333
+      },
+      "gyro_magnitude_dps": {
+        "min": 2.489,
+        "median": 34.892,
+        "mean": 34.17676411960132,
+        "p95": 58.279,
+        "max": 79.07
+      },
+      "accel5_count": 5,
+      "accel5_percent": 1.6611295681063125,
+      "accel5_pulses": 5,
+      "accel5_longest_consecutive": 1,
+      "first_accel5_s": 21.41,
+      "last_accel5_s": 29.038,
+      "first_accel5_after_2s": 21.41,
+      "first3s": {
+        "n": 30,
+        "accel_msd": 0.9792912400666667,
+        "gyro_msd": 322.9657078,
+        "accel_magnitude_mps2": 9.501533333333333,
+        "gyro_magnitude_dps": 36.902366666666666,
+        "accel_msd_ge5_count": 0
+      },
+      "last3s": {
+        "n": 30,
+        "accel_msd": 2.6029048716666665,
+        "gyro_msd": 665.5042143333334,
+        "accel_magnitude_mps2": 7.583,
+        "gyro_magnitude_dps": 37.27296666666667,
+        "accel_msd_ge5_count": 3
+      },
+      "last5s": {
+        "n": 50,
+        "accel_msd": 2.5101924944,
+        "gyro_msd": 671.9078317999999,
+        "accel_magnitude_mps2": 7.8025199999999995,
+        "gyro_magnitude_dps": 37.26162,
+        "accel_msd_ge5_count": 4
+      },
+      "first10s": {
+        "n": 100,
+        "accel_msd": 1.54803502808,
+        "gyro_msd": 411.65462718000003,
+        "accel_magnitude_mps2": 8.93911,
+        "gyro_magnitude_dps": 34.02334,
+        "accel_msd_ge5_count": 0
+      },
+      "seconds10to20": {
+        "n": 99,
+        "accel_msd": 1.8735477289898992,
+        "gyro_msd": 469.9614306363636,
+        "accel_magnitude_mps2": 8.649070707070706,
+        "gyro_magnitude_dps": 33.18883838383838,
+        "accel_msd_ge5_count": 0
+      },
+      "last10s": {
+        "n": 100,
+        "accel_msd": 2.2805969489,
+        "gyro_msd": 599.39462386,
+        "accel_magnitude_mps2": 8.035079999999999,
+        "gyro_magnitude_dps": 35.35516,
+        "accel_msd_ge5_count": 5
+      },
+      "first_trigger": {
+        "time_s": 21.41,
+        "pre3s": {
+          "n": 29,
+          "accel_msd": 1.9011602196206894,
+          "gyro_msd": 526.9680828275863,
+          "accel_magnitude_mps2": 8.19196551724138,
+          "gyro_magnitude_dps": 33.47862068965517,
+          "accel_msd_ge5_count": 0
+        },
+        "post5to8s": {
+          "n": 30,
+          "accel_msd": 2.5960511643333333,
+          "gyro_msd": 653.2650353333335,
+          "accel_magnitude_mps2": 7.839066666666666,
+          "gyro_magnitude_dps": 37.0146,
+          "accel_msd_ge5_count": 4
+        }
+      },
+      "after_warmup_trigger": {
+        "time_s": 21.41,
+        "pre3s": {
+          "n": 29,
+          "accel_msd": 1.9011602196206894,
+          "gyro_msd": 526.9680828275863,
+          "accel_magnitude_mps2": 8.19196551724138,
+          "gyro_magnitude_dps": 33.47862068965517,
+          "accel_msd_ge5_count": 0
+        },
+        "post5to8s": {
+          "n": 30,
+          "accel_msd": 2.5960511643333333,
+          "gyro_msd": 653.2650353333335,
+          "accel_magnitude_mps2": 7.839066666666666,
+          "gyro_magnitude_dps": 37.0146,
+          "accel_msd_ge5_count": 4
+        }
+      },
+      "one_second_bins": [
+        {
+          "second": 0,
+          "n": 10,
+          "accel_msd": 0.5374609982,
+          "gyro_msd": 286.705816,
+          "accel_magnitude_mps2": 9.473999999999998,
+          "gyro_magnitude_dps": 34.9705,
+          "accel_msd_ge5_count": 0,
+          "accel_msd_max": 2.831929,
+          "quiet": false
+        },
+        {
+          "second": 1,
+          "n": 10,
+          "accel_msd": 1.059175617,
+          "gyro_msd": 257.3861874,
+          "accel_magnitude_mps2": 9.3527,
+          "gyro_magnitude_dps": 40.280199999999994,
+          "accel_msd_ge5_count": 0,
+          "accel_msd_max": 3.225971,
+          "quiet": false
+        },
+        {
+          "second": 2,
+          "n": 10,
+          "accel_msd": 1.341237105,
+          "gyro_msd": 424.80512,
+          "accel_magnitude_mps2": 9.6779,
+          "gyro_magnitude_dps": 35.4564,
+          "accel_msd_ge5_count": 0,
+          "accel_msd_max": 3.15753,
+          "quiet": false
+        },
+        {
+          "second": 3,
+          "n": 10,
+          "accel_msd": 1.9734930900000003,
+          "gyro_msd": 389.1601588,
+          "accel_magnitude_mps2": 8.6503,
+          "gyro_magnitude_dps": 33.4401,
+          "accel_msd_ge5_count": 0,
+          "accel_msd_max": 4.335905,
+          "quiet": false
+        },
+        {
+          "second": 4,
+          "n": 10,
+          "accel_msd": 1.49210268,
+          "gyro_msd": 414.6668226,
+          "accel_magnitude_mps2": 8.532900000000001,
+          "gyro_magnitude_dps": 26.850099999999998,
+          "accel_msd_ge5_count": 0,
+          "accel_msd_max": 4.003925,
+          "quiet": false
+        },
+        {
+          "second": 5,
+          "n": 10,
+          "accel_msd": 1.56104728,
+          "gyro_msd": 383.9984171,
+          "accel_magnitude_mps2": 9.2179,
+          "gyro_magnitude_dps": 31.243399999999998,
+          "accel_msd_ge5_count": 0,
+          "accel_msd_max": 3.717145,
+          "quiet": false
+        },
+        {
+          "second": 6,
+          "n": 10,
+          "accel_msd": 2.07124368,
+          "gyro_msd": 510.9726075,
+          "accel_magnitude_mps2": 8.323,
+          "gyro_magnitude_dps": 36.368399999999994,
+          "accel_msd_ge5_count": 0,
+          "accel_msd_max": 3.937503,
+          "quiet": false
+        },
+        {
+          "second": 7,
+          "n": 10,
+          "accel_msd": 1.8907161100000003,
+          "gyro_msd": 620.3840074000001,
+          "accel_magnitude_mps2": 8.484499999999999,
+          "gyro_magnitude_dps": 36.2643,
+          "accel_msd_ge5_count": 0,
+          "accel_msd_max": 4.829131,
+          "quiet": false
+        },
+        {
+          "second": 8,
+          "n": 10,
+          "accel_msd": 1.953229948,
+          "gyro_msd": 454.68224,
+          "accel_magnitude_mps2": 9.0857,
+          "gyro_magnitude_dps": 36.4562,
+          "accel_msd_ge5_count": 0,
+          "accel_msd_max": 3.883039,
+          "quiet": false
+        },
+        {
+          "second": 9,
+          "n": 10,
+          "accel_msd": 1.6006437725999998,
+          "gyro_msd": 373.78489499999995,
+          "accel_magnitude_mps2": 8.5922,
+          "gyro_magnitude_dps": 28.9038,
+          "accel_msd_ge5_count": 0,
+          "accel_msd_max": 3.132493,
+          "quiet": false
+        },
+        {
+          "second": 10,
+          "n": 10,
+          "accel_msd": 1.7505606500000002,
+          "gyro_msd": 455.85139799999996,
+          "accel_magnitude_mps2": 8.550099999999999,
+          "gyro_magnitude_dps": 33.4402,
+          "accel_msd_ge5_count": 0,
+          "accel_msd_max": 4.65378,
+          "quiet": false
+        },
+        {
+          "second": 11,
+          "n": 10,
+          "accel_msd": 2.1461093399999998,
+          "gyro_msd": 412.23849099999995,
+          "accel_magnitude_mps2": 9.3137,
+          "gyro_magnitude_dps": 35.159800000000004,
+          "accel_msd_ge5_count": 0,
+          "accel_msd_max": 4.521932,
+          "quiet": false
+        },
+        {
+          "second": 12,
+          "n": 10,
+          "accel_msd": 1.560922317,
+          "gyro_msd": 405.3435263,
+          "accel_magnitude_mps2": 8.8415,
+          "gyro_magnitude_dps": 27.7714,
+          "accel_msd_ge5_count": 0,
+          "accel_msd_max": 3.739778,
+          "quiet": false
+        },
+        {
+          "second": 13,
+          "n": 10,
+          "accel_msd": 2.01062476,
+          "gyro_msd": 495.0203479999999,
+          "accel_magnitude_mps2": 8.1679,
+          "gyro_magnitude_dps": 36.6343,
+          "accel_msd_ge5_count": 0,
+          "accel_msd_max": 4.62134,
+          "quiet": false
+        },
+        {
+          "second": 14,
+          "n": 10,
+          "accel_msd": 1.9248212589999998,
+          "gyro_msd": 505.663437,
+          "accel_magnitude_mps2": 8.6882,
+          "gyro_magnitude_dps": 31.8322,
+          "accel_msd_ge5_count": 0,
+          "accel_msd_max": 4.033611,
+          "quiet": false
+        },
+        {
+          "second": 15,
+          "n": 10,
+          "accel_msd": 1.712842756,
+          "gyro_msd": 457.39525299999997,
+          "accel_magnitude_mps2": 9.1119,
+          "gyro_magnitude_dps": 34.4739,
+          "accel_msd_ge5_count": 0,
+          "accel_msd_max": 3.680184,
+          "quiet": false
+        },
+        {
+          "second": 16,
+          "n": 10,
+          "accel_msd": 1.942215527,
+          "gyro_msd": 410.3735519999999,
+          "accel_magnitude_mps2": 8.2364,
+          "gyro_magnitude_dps": 33.7539,
+          "accel_msd_ge5_count": 0,
+          "accel_msd_max": 3.258093,
+          "quiet": false
+        },
+        {
+          "second": 17,
+          "n": 10,
+          "accel_msd": 1.990239876,
+          "gyro_msd": 550.7751077999999,
+          "accel_magnitude_mps2": 8.1878,
+          "gyro_magnitude_dps": 35.3778,
+          "accel_msd_ge5_count": 0,
+          "accel_msd_max": 4.278589,
+          "quiet": false
+        },
+        {
+          "second": 18,
+          "n": 10,
+          "accel_msd": 1.8194987,
+          "gyro_msd": 483.6229072,
+          "accel_magnitude_mps2": 8.589099999999998,
+          "gyro_magnitude_dps": 29.9959,
+          "accel_msd_ge5_count": 0,
+          "accel_msd_max": 4.503626,
+          "quiet": false
+        },
+        {
+          "second": 19,
+          "n": 9,
+          "accel_msd": 1.8780970355555557,
+          "gyro_msd": 529.2601588888889,
+          "accel_magnitude_mps2": 8.821333333333333,
+          "gyro_magnitude_dps": 33.477888888888884,
+          "accel_msd_ge5_count": 0,
+          "accel_msd_max": 4.482565,
+          "quiet": false
+        },
+        {
+          "second": 20,
+          "n": 10,
+          "accel_msd": 2.26169027,
+          "gyro_msd": 481.78385,
+          "accel_magnitude_mps2": 7.815800000000001,
+          "gyro_magnitude_dps": 35.3802,
+          "accel_msd_ge5_count": 0,
+          "accel_msd_max": 4.290257,
+          "quiet": false
+        },
+        {
+          "second": 21,
+          "n": 10,
+          "accel_msd": 2.0117561849000003,
+          "gyro_msd": 608.9656396,
+          "accel_magnitude_mps2": 7.872399999999999,
+          "gyro_magnitude_dps": 35.0341,
+          "accel_msd_ge5_count": 1,
+          "accel_msd_max": 5.429555,
+          "quiet": false
+        },
+        {
+          "second": 22,
+          "n": 10,
+          "accel_msd": 2.0825857730000004,
+          "gyro_msd": 490.708555,
+          "accel_magnitude_mps2": 8.4237,
+          "gyro_magnitude_dps": 32.6304,
+          "accel_msd_ge5_count": 0,
+          "accel_msd_max": 3.85967,
+          "quiet": false
+        },
+        {
+          "second": 23,
+          "n": 10,
+          "accel_msd": 1.9746246479,
+          "gyro_msd": 440.95578400000005,
+          "accel_magnitude_mps2": 8.731300000000001,
+          "gyro_magnitude_dps": 32.56099999999999,
+          "accel_msd_ge5_count": 0,
+          "accel_msd_max": 4.657789,
+          "quiet": false
+        },
+        {
+          "second": 24,
+          "n": 10,
+          "accel_msd": 1.8879144412,
+          "gyro_msd": 593.44353,
+          "accel_magnitude_mps2": 8.5105,
+          "gyro_magnitude_dps": 32.086800000000004,
+          "accel_msd_ge5_count": 0,
+          "accel_msd_max": 4.92325,
+          "quiet": false
+        },
+        {
+          "second": 25,
+          "n": 10,
+          "accel_msd": 2.386945399,
+          "gyro_msd": 584.24308,
+          "accel_magnitude_mps2": 7.893600000000001,
+          "gyro_magnitude_dps": 33.745599999999996,
+          "accel_msd_ge5_count": 0,
+          "accel_msd_max": 4.648522,
+          "quiet": false
+        },
+        {
+          "second": 26,
+          "n": 10,
+          "accel_msd": 2.740282008,
+          "gyro_msd": 698.5014960000001,
+          "accel_magnitude_mps2": 7.6813,
+          "gyro_magnitude_dps": 41.63099999999999,
+          "accel_msd_ge5_count": 1,
+          "accel_msd_max": 5.310336,
+          "quiet": false
+        },
+        {
+          "second": 27,
+          "n": 10,
+          "accel_msd": 2.24735144,
+          "gyro_msd": 631.7748650000001,
+          "accel_magnitude_mps2": 7.871200000000002,
+          "gyro_magnitude_dps": 32.1256,
+          "accel_msd_ge5_count": 2,
+          "accel_msd_max": 5.398012,
+          "quiet": false
+        },
+        {
+          "second": 28,
+          "n": 10,
+          "accel_msd": 2.4262282349999995,
+          "gyro_msd": 675.642041,
+          "accel_magnitude_mps2": 7.4338999999999995,
+          "gyro_magnitude_dps": 36.2487,
+          "accel_msd_ge5_count": 0,
+          "accel_msd_max": 4.822144,
+          "quiet": false
+        },
+        {
+          "second": 29,
+          "n": 10,
+          "accel_msd": 2.7991957899999997,
+          "gyro_msd": 626.107487,
+          "accel_magnitude_mps2": 8.1264,
+          "gyro_magnitude_dps": 41.3984,
+          "accel_msd_ge5_count": 1,
+          "accel_msd_max": 6.151377,
+          "quiet": false
+        }
+      ],
+      "continuous_quiet_tail_start_s": null
+    },
+    {
+      "session_id": 45,
+      "notes": "Trial 42: Grandma runs at continuous pace",
+      "activity": "running-continuously",
+      "trial": 42,
+      "raw_n": 300,
+      "kept_n": 300,
+      "dropped_prefix_or_other_segments": 0,
+      "duration_s": 30.109,
+      "first_sample_number": 63,
+      "last_sample_number": 362,
+      "counter_discontinuities": 0,
+      "missing_counters": 0,
+      "nonpositive_time_deltas": 0,
+      "time_gaps_gt250ms": 0,
+      "dt_min_ms": 100.0,
+      "dt_median_ms": 101.0,
+      "dt_max_ms": 101.0,
+      "dt_p95_ms": 101.0,
+      "nullable_metric_counts": {
+        "board_time_ms": 0,
+        "accel_msd": 0,
+        "gyro_msd": 0,
+        "accel_magnitude_slope": 0,
+        "gyro_magnitude_slope": 0,
+        "accel_msd_slope": 0,
+        "gyro_msd_slope": 0
+      },
+      "accel_msd": {
+        "min": 0.00108993,
+        "median": 3.0999245,
+        "mean": 3.228482457306666,
+        "p95": 7.1684607,
+        "max": 12.38944
+      },
+      "gyro_msd": {
+        "min": 0.396698,
+        "median": 777.05115,
+        "mean": 803.2143709933334,
+        "p95": 1771.6294,
+        "max": 2494.521
+      },
+      "accel_magnitude_mps2": {
+        "min": 2.522,
+        "median": 7.2725,
+        "mean": 7.009986666666667,
+        "p95": 10.567150000000002,
+        "max": 12.207
+      },
+      "gyro_magnitude_dps": {
+        "min": 3.99,
+        "median": 41.083,
+        "mean": 39.00852666666667,
+        "p95": 65.90925,
+        "max": 79.091
+      },
+      "accel5_count": 78,
+      "accel5_percent": 26.0,
+      "accel5_pulses": 78,
+      "accel5_longest_consecutive": 1,
+      "first_accel5_s": 2.007,
+      "last_accel5_s": 30.109,
+      "first_accel5_after_2s": 2.007,
+      "first3s": {
+        "n": 30,
+        "accel_msd": 1.9667453167333335,
+        "gyro_msd": 556.9239009,
+        "accel_magnitude_mps2": 8.775066666666666,
+        "gyro_magnitude_dps": 31.175566666666665,
+        "accel_msd_ge5_count": 4
+      },
+      "last3s": {
+        "n": 30,
+        "accel_msd": 3.4200408533333335,
+        "gyro_msd": 848.0506866666667,
+        "accel_magnitude_mps2": 6.825733333333333,
+        "gyro_magnitude_dps": 41.141333333333336,
+        "accel_msd_ge5_count": 7
+      },
+      "last5s": {
+        "n": 50,
+        "accel_msd": 3.467848032,
+        "gyro_msd": 833.7790141,
+        "accel_magnitude_mps2": 6.8314200000000005,
+        "gyro_magnitude_dps": 40.1823,
+        "accel_msd_ge5_count": 15
+      },
+      "first10s": {
+        "n": 100,
+        "accel_msd": 3.0754550428200003,
+        "gyro_msd": 736.1700380699999,
+        "accel_magnitude_mps2": 7.497350000000001,
+        "gyro_magnitude_dps": 37.06632,
+        "accel_msd_ge5_count": 21
+      },
+      "seconds10to20": {
+        "n": 99,
+        "accel_msd": 3.3862868656565657,
+        "gyro_msd": 850.300353050505,
+        "accel_magnitude_mps2": 6.72840404040404,
+        "gyro_magnitude_dps": 39.88322222222222,
+        "accel_msd_ge5_count": 28
+      },
+      "last10s": {
+        "n": 100,
+        "accel_msd": 3.1948806421000002,
+        "gyro_msd": 831.34289269,
+        "accel_magnitude_mps2": 6.796880000000001,
+        "gyro_magnitude_dps": 40.04229,
+        "accel_msd_ge5_count": 28
+      },
+      "first_trigger": {
+        "time_s": 2.007,
+        "pre3s": {
+          "n": 20,
+          "accel_msd": 0.9513335050999998,
+          "gyro_msd": 339.69467135,
+          "accel_magnitude_mps2": 9.57175,
+          "gyro_magnitude_dps": 26.054249999999996,
+          "accel_msd_ge5_count": 0
+        },
+        "post5to8s": {
+          "n": 30,
+          "accel_msd": 3.5597625786666667,
+          "gyro_msd": 885.5361586666667,
+          "accel_magnitude_mps2": 6.8786666666666685,
+          "gyro_magnitude_dps": 40.825433333333336,
+          "accel_msd_ge5_count": 7
+        }
+      },
+      "after_warmup_trigger": {
+        "time_s": 2.007,
+        "pre3s": {
+          "n": 20,
+          "accel_msd": 0.9513335050999998,
+          "gyro_msd": 339.69467135,
+          "accel_magnitude_mps2": 9.57175,
+          "gyro_magnitude_dps": 26.054249999999996,
+          "accel_msd_ge5_count": 0
+        },
+        "post5to8s": {
+          "n": 30,
+          "accel_msd": 3.5597625786666667,
+          "gyro_msd": 885.5361586666667,
+          "accel_magnitude_mps2": 6.8786666666666685,
+          "gyro_magnitude_dps": 40.825433333333336,
+          "accel_msd_ge5_count": 7
+        }
+      },
+      "one_second_bins": [
+        {
+          "second": 0,
+          "n": 10,
+          "accel_msd": 0.015287870199999998,
+          "gyro_msd": 5.0848767,
+          "accel_magnitude_mps2": 9.7837,
+          "gyro_magnitude_dps": 9.824499999999997,
+          "accel_msd_ge5_count": 0,
+          "accel_msd_max": 0.03266581,
+          "quiet": false
+        },
+        {
+          "second": 1,
+          "n": 10,
+          "accel_msd": 1.8873791399999997,
+          "gyro_msd": 674.304466,
+          "accel_magnitude_mps2": 9.3598,
+          "gyro_magnitude_dps": 42.284,
+          "accel_msd_ge5_count": 0,
+          "accel_msd_max": 4.809898,
+          "quiet": false
+        },
+        {
+          "second": 2,
+          "n": 10,
+          "accel_msd": 3.99756894,
+          "gyro_msd": 991.38236,
+          "accel_magnitude_mps2": 7.181700000000001,
+          "gyro_magnitude_dps": 41.4182,
+          "accel_msd_ge5_count": 4,
+          "accel_msd_max": 12.38944,
+          "quiet": false
+        },
+        {
+          "second": 3,
+          "n": 10,
+          "accel_msd": 3.23931971,
+          "gyro_msd": 789.023214,
+          "accel_magnitude_mps2": 6.9839,
+          "gyro_magnitude_dps": 38.703199999999995,
+          "accel_msd_ge5_count": 3,
+          "accel_msd_max": 9.076848,
+          "quiet": false
+        },
+        {
+          "second": 4,
+          "n": 10,
+          "accel_msd": 4.0135553999999996,
+          "gyro_msd": 768.9114219999999,
+          "accel_magnitude_mps2": 6.929,
+          "gyro_magnitude_dps": 39.1298,
+          "accel_msd_ge5_count": 3,
+          "accel_msd_max": 9.952609,
+          "quiet": false
+        },
+        {
+          "second": 5,
+          "n": 10,
+          "accel_msd": 3.954805142,
+          "gyro_msd": 731.396327,
+          "accel_magnitude_mps2": 6.513499999999999,
+          "gyro_magnitude_dps": 38.8012,
+          "accel_msd_ge5_count": 3,
+          "accel_msd_max": 8.817446,
+          "quiet": false
+        },
+        {
+          "second": 6,
+          "n": 10,
+          "accel_msd": 2.9673464899999997,
+          "gyro_msd": 744.989239,
+          "accel_magnitude_mps2": 7.5859000000000005,
+          "gyro_magnitude_dps": 38.025999999999996,
+          "accel_msd_ge5_count": 1,
+          "accel_msd_max": 5.253018,
+          "quiet": false
+        },
+        {
+          "second": 7,
+          "n": 10,
+          "accel_msd": 3.57056568,
+          "gyro_msd": 907.553772,
+          "accel_magnitude_mps2": 7.1029,
+          "gyro_magnitude_dps": 40.0933,
+          "accel_msd_ge5_count": 3,
+          "accel_msd_max": 7.103401,
+          "quiet": false
+        },
+        {
+          "second": 8,
+          "n": 10,
+          "accel_msd": 3.13862302,
+          "gyro_msd": 823.172824,
+          "accel_magnitude_mps2": 7.073600000000001,
+          "gyro_magnitude_dps": 37.27459999999999,
+          "accel_msd_ge5_count": 1,
+          "accel_msd_max": 6.915964,
+          "quiet": false
+        },
+        {
+          "second": 9,
+          "n": 10,
+          "accel_msd": 3.9700990360000006,
+          "gyro_msd": 925.8818799999999,
+          "accel_magnitude_mps2": 6.4595,
+          "gyro_magnitude_dps": 45.1084,
+          "accel_msd_ge5_count": 3,
+          "accel_msd_max": 7.44785,
+          "quiet": false
+        },
+        {
+          "second": 10,
+          "n": 10,
+          "accel_msd": 3.37391321,
+          "gyro_msd": 724.24681,
+          "accel_magnitude_mps2": 6.9425,
+          "gyro_magnitude_dps": 36.9666,
+          "accel_msd_ge5_count": 2,
+          "accel_msd_max": 7.753705,
+          "quiet": false
+        },
+        {
+          "second": 11,
+          "n": 10,
+          "accel_msd": 2.49076818,
+          "gyro_msd": 654.524086,
+          "accel_magnitude_mps2": 7.594199999999999,
+          "gyro_magnitude_dps": 34.587399999999995,
+          "accel_msd_ge5_count": 0,
+          "accel_msd_max": 4.676094,
+          "quiet": false
+        },
+        {
+          "second": 12,
+          "n": 10,
+          "accel_msd": 3.3030937200000006,
+          "gyro_msd": 843.7958067,
+          "accel_magnitude_mps2": 6.733,
+          "gyro_magnitude_dps": 39.6575,
+          "accel_msd_ge5_count": 1,
+          "accel_msd_max": 5.294179,
+          "quiet": false
+        },
+        {
+          "second": 13,
+          "n": 10,
+          "accel_msd": 3.3374996699999997,
+          "gyro_msd": 913.441171,
+          "accel_magnitude_mps2": 6.8744,
+          "gyro_magnitude_dps": 40.5985,
+          "accel_msd_ge5_count": 4,
+          "accel_msd_max": 6.834187,
+          "quiet": false
+        },
+        {
+          "second": 14,
+          "n": 9,
+          "accel_msd": 3.9547605666666663,
+          "gyro_msd": 871.0973993333332,
+          "accel_magnitude_mps2": 6.727,
+          "gyro_magnitude_dps": 42.07544444444444,
+          "accel_msd_ge5_count": 4,
+          "accel_msd_max": 10.23791,
+          "quiet": false
+        },
+        {
+          "second": 15,
+          "n": 10,
+          "accel_msd": 3.90215162,
+          "gyro_msd": 991.679926,
+          "accel_magnitude_mps2": 6.5709,
+          "gyro_magnitude_dps": 43.7543,
+          "accel_msd_ge5_count": 4,
+          "accel_msd_max": 8.661906,
+          "quiet": false
+        },
+        {
+          "second": 16,
+          "n": 10,
+          "accel_msd": 3.59861212,
+          "gyro_msd": 1014.127647,
+          "accel_magnitude_mps2": 6.679400000000001,
+          "gyro_magnitude_dps": 41.287699999999994,
+          "accel_msd_ge5_count": 3,
+          "accel_msd_max": 7.589349,
+          "quiet": false
+        },
+        {
+          "second": 17,
+          "n": 10,
+          "accel_msd": 3.10123834,
+          "gyro_msd": 783.7504240000001,
+          "accel_magnitude_mps2": 6.3741,
+          "gyro_magnitude_dps": 39.5344,
+          "accel_msd_ge5_count": 2,
+          "accel_msd_max": 6.319869,
+          "quiet": false
+        },
+        {
+          "second": 18,
+          "n": 10,
+          "accel_msd": 3.6165255699999994,
+          "gyro_msd": 900.1036951,
+          "accel_magnitude_mps2": 6.5709,
+          "gyro_magnitude_dps": 41.0122,
+          "accel_msd_ge5_count": 4,
+          "accel_msd_max": 6.780301,
+          "quiet": false
+        },
+        {
+          "second": 19,
+          "n": 10,
+          "accel_msd": 3.2411530300000004,
+          "gyro_msd": 808.31627,
+          "accel_magnitude_mps2": 6.217499999999999,
+          "gyro_magnitude_dps": 39.5774,
+          "accel_msd_ge5_count": 4,
+          "accel_msd_max": 5.565251,
+          "quiet": false
+        },
+        {
+          "second": 20,
+          "n": 10,
+          "accel_msd": 2.80359106,
+          "gyro_msd": 795.8938459999998,
+          "accel_magnitude_mps2": 6.055899999999999,
+          "gyro_magnitude_dps": 39.4396,
+          "accel_msd_ge5_count": 2,
+          "accel_msd_max": 6.268769,
+          "quiet": false
+        },
+        {
+          "second": 21,
+          "n": 10,
+          "accel_msd": 3.04572229,
+          "gyro_msd": 899.8461344,
+          "accel_magnitude_mps2": 6.480199999999999,
+          "gyro_magnitude_dps": 41.0311,
+          "accel_msd_ge5_count": 4,
+          "accel_msd_max": 6.423091,
+          "quiet": false
+        },
+        {
+          "second": 22,
+          "n": 10,
+          "accel_msd": 3.3079114229999993,
+          "gyro_msd": 811.347426,
+          "accel_magnitude_mps2": 6.8262,
+          "gyro_magnitude_dps": 39.6385,
+          "accel_msd_ge5_count": 4,
+          "accel_msd_max": 6.951066,
+          "quiet": false
+        },
+        {
+          "second": 23,
+          "n": 10,
+          "accel_msd": 2.9146485679999996,
+          "gyro_msd": 716.229217,
+          "accel_magnitude_mps2": 7.131399999999999,
+          "gyro_magnitude_dps": 38.2906,
+          "accel_msd_ge5_count": 4,
+          "accel_msd_max": 5.770351,
+          "quiet": false
+        },
+        {
+          "second": 24,
+          "n": 10,
+          "accel_msd": 3.14899663,
+          "gyro_msd": 753.77756,
+          "accel_magnitude_mps2": 7.644,
+          "gyro_magnitude_dps": 41.064099999999996,
+          "accel_msd_ge5_count": 0,
+          "accel_msd_max": 4.93447,
+          "quiet": false
+        },
+        {
+          "second": 25,
+          "n": 10,
+          "accel_msd": 3.3104953999999998,
+          "gyro_msd": 805.3160685,
+          "accel_magnitude_mps2": 6.780999999999999,
+          "gyro_magnitude_dps": 41.3284,
+          "accel_msd_ge5_count": 4,
+          "accel_msd_max": 7.187037,
+          "quiet": false
+        },
+        {
+          "second": 26,
+          "n": 10,
+          "accel_msd": 3.48468879,
+          "gyro_msd": 890.6597019999999,
+          "accel_magnitude_mps2": 7.0396,
+          "gyro_magnitude_dps": 39.67450000000001,
+          "accel_msd_ge5_count": 4,
+          "accel_msd_max": 7.007551,
+          "quiet": false
+        },
+        {
+          "second": 27,
+          "n": 10,
+          "accel_msd": 3.1621428000000003,
+          "gyro_msd": 879.3260399999999,
+          "accel_magnitude_mps2": 6.7152,
+          "gyro_magnitude_dps": 40.701100000000004,
+          "accel_msd_ge5_count": 1,
+          "accel_msd_max": 5.08831,
+          "quiet": false
+        },
+        {
+          "second": 28,
+          "n": 10,
+          "accel_msd": 3.6739360499999996,
+          "gyro_msd": 919.00822,
+          "accel_magnitude_mps2": 6.7615,
+          "gyro_magnitude_dps": 40.1382,
+          "accel_msd_ge5_count": 4,
+          "accel_msd_max": 7.553189,
+          "quiet": false
+        },
+        {
+          "second": 29,
+          "n": 9,
+          "accel_msd": 3.492274188888889,
+          "gyro_msd": 739.8599444444444,
+          "accel_magnitude_mps2": 6.280888888888889,
+          "gyro_magnitude_dps": 40.163000000000004,
+          "accel_msd_ge5_count": 1,
+          "accel_msd_max": 7.013097,
+          "quiet": false
+        }
+      ],
+      "continuous_quiet_tail_start_s": null
+    },
+    {
+      "session_id": 46,
+      "notes": "Trial 43: Grandma runs at continuous pace",
+      "activity": "running-continuously",
+      "trial": 43,
+      "raw_n": 299,
+      "kept_n": 299,
+      "dropped_prefix_or_other_segments": 0,
+      "duration_s": 30.013,
+      "first_sample_number": 57,
+      "last_sample_number": 355,
+      "counter_discontinuities": 0,
+      "missing_counters": 0,
+      "nonpositive_time_deltas": 0,
+      "time_gaps_gt250ms": 0,
+      "dt_min_ms": 100.0,
+      "dt_median_ms": 101.0,
+      "dt_max_ms": 101.0,
+      "dt_p95_ms": 101.0,
+      "nullable_metric_counts": {
+        "board_time_ms": 0,
+        "accel_msd": 0,
+        "gyro_msd": 0,
+        "accel_magnitude_slope": 0,
+        "gyro_magnitude_slope": 0,
+        "accel_msd_slope": 0,
+        "gyro_msd_slope": 0
+      },
+      "accel_msd": {
+        "min": 0.003718577,
+        "median": 4.075668,
+        "mean": 3.958168258384615,
+        "p95": 8.745862799999998,
+        "max": 16.4461
+      },
+      "gyro_msd": {
+        "min": 2.117782,
+        "median": 1016.103,
+        "mean": 1068.150800859532,
+        "p95": 2383.550299999997,
+        "max": 3395.032
+      },
+      "accel_magnitude_mps2": {
+        "min": 0.693,
+        "median": 6.766,
+        "mean": 6.489033444816053,
+        "p95": 10.767199999999999,
+        "max": 13.971
+      },
+      "gyro_magnitude_dps": {
+        "min": 4.56,
+        "median": 48.296,
+        "mean": 46.99122742474916,
+        "p95": 78.16309999999997,
+        "max": 98.386
+      },
+      "accel5_count": 109,
+      "accel5_percent": 36.45484949832776,
+      "accel5_pulses": 94,
+      "accel5_longest_consecutive": 4,
+      "first_accel5_s": 0.705,
+      "last_accel5_s": 30.013,
+      "first_accel5_after_2s": 2.018,
+      "first3s": {
+        "n": 30,
+        "accel_msd": 3.5320546815666662,
+        "gyro_msd": 980.5361250000001,
+        "accel_magnitude_mps2": 8.013599999999999,
+        "gyro_magnitude_dps": 49.665166666666664,
+        "accel_msd_ge5_count": 10
+      },
+      "last3s": {
+        "n": 30,
+        "accel_msd": 3.6963203019999997,
+        "gyro_msd": 1011.9332606666665,
+        "accel_magnitude_mps2": 6.567300000000001,
+        "gyro_magnitude_dps": 46.37073333333334,
+        "accel_msd_ge5_count": 7
+      },
+      "last5s": {
+        "n": 50,
+        "accel_msd": 3.9167277611999998,
+        "gyro_msd": 1063.335172,
+        "accel_magnitude_mps2": 6.660540000000001,
+        "gyro_magnitude_dps": 46.617920000000005,
+        "accel_msd_ge5_count": 14
+      },
+      "first10s": {
+        "n": 100,
+        "accel_msd": 4.34218983587,
+        "gyro_msd": 1116.6836409200002,
+        "accel_magnitude_mps2": 6.403130000000001,
+        "gyro_magnitude_dps": 47.38536,
+        "accel_msd_ge5_count": 43
+      },
+      "seconds10to20": {
+        "n": 99,
+        "accel_msd": 3.811591844242424,
+        "gyro_msd": 1049.9425166666667,
+        "accel_magnitude_mps2": 6.284,
+        "gyro_magnitude_dps": 47.434343434343425,
+        "accel_msd_ge5_count": 39
+      },
+      "last10s": {
+        "n": 100,
+        "accel_msd": 3.7192573309,
+        "gyro_msd": 1037.6441621500003,
+        "accel_magnitude_mps2": 6.77792,
+        "gyro_magnitude_dps": 46.158409999999996,
+        "accel_msd_ge5_count": 27
+      },
+      "first_trigger": {
+        "time_s": 0.705,
+        "pre3s": {
+          "n": 7,
+          "accel_msd": 0.860276021,
+          "gyro_msd": 281.55546714285714,
+          "accel_magnitude_mps2": 10.960714285714287,
+          "gyro_magnitude_dps": 31.104714285714287,
+          "accel_msd_ge5_count": 0
+        },
+        "post5to8s": {
+          "n": 30,
+          "accel_msd": 4.6906912,
+          "gyro_msd": 1286.2594786666664,
+          "accel_magnitude_mps2": 5.3893,
+          "gyro_magnitude_dps": 45.7454,
+          "accel_msd_ge5_count": 13
+        }
+      },
+      "after_warmup_trigger": {
+        "time_s": 2.018,
+        "pre3s": {
+          "n": 20,
+          "accel_msd": 2.92974553735,
+          "gyro_msd": 820.1603975,
+          "accel_magnitude_mps2": 8.72145,
+          "gyro_magnitude_dps": 49.053799999999995,
+          "accel_msd_ge5_count": 6
+        },
+        "post5to8s": {
+          "n": 30,
+          "accel_msd": 4.156968710000001,
+          "gyro_msd": 1153.5829816666667,
+          "accel_magnitude_mps2": 5.698466666666666,
+          "gyro_magnitude_dps": 44.79866666666666,
+          "accel_msd_ge5_count": 12
+        }
+      },
+      "one_second_bins": [
+        {
+          "second": 0,
+          "n": 10,
+          "accel_msd": 1.8916518146999999,
+          "gyro_msd": 584.654675,
+          "accel_magnitude_mps2": 9.2529,
+          "gyro_magnitude_dps": 40.768600000000006,
+          "accel_msd_ge5_count": 1,
+          "accel_msd_max": 8.359672,
+          "quiet": false
+        },
+        {
+          "second": 1,
+          "n": 10,
+          "accel_msd": 3.9678392600000008,
+          "gyro_msd": 1055.66612,
+          "accel_magnitude_mps2": 8.190000000000001,
+          "gyro_magnitude_dps": 57.33900000000001,
+          "accel_msd_ge5_count": 5,
+          "accel_msd_max": 7.113467,
+          "quiet": false
+        },
+        {
+          "second": 2,
+          "n": 10,
+          "accel_msd": 4.73667297,
+          "gyro_msd": 1301.2875799999997,
+          "accel_magnitude_mps2": 6.5979,
+          "gyro_magnitude_dps": 50.887899999999995,
+          "accel_msd_ge5_count": 4,
+          "accel_msd_max": 9.823131,
+          "quiet": false
+        },
+        {
+          "second": 3,
+          "n": 10,
+          "accel_msd": 5.40219207,
+          "gyro_msd": 1085.64561,
+          "accel_magnitude_mps2": 5.9554,
+          "gyro_magnitude_dps": 48.3005,
+          "accel_msd_ge5_count": 6,
+          "accel_msd_max": 10.35236,
+          "quiet": false
+        },
+        {
+          "second": 4,
+          "n": 10,
+          "accel_msd": 5.57216319,
+          "gyro_msd": 1200.2570131999998,
+          "accel_magnitude_mps2": 5.5927,
+          "gyro_magnitude_dps": 52.723200000000006,
+          "accel_msd_ge5_count": 5,
+          "accel_msd_max": 16.4461,
+          "quiet": false
+        },
+        {
+          "second": 5,
+          "n": 10,
+          "accel_msd": 4.524140364,
+          "gyro_msd": 1166.82636,
+          "accel_magnitude_mps2": 5.443400000000001,
+          "gyro_magnitude_dps": 42.386500000000005,
+          "accel_msd_ge5_count": 6,
+          "accel_msd_max": 7.606116,
+          "quiet": false
+        },
+        {
+          "second": 6,
+          "n": 10,
+          "accel_msd": 4.85633256,
+          "gyro_msd": 1311.7501060000002,
+          "accel_magnitude_mps2": 5.903599999999999,
+          "gyro_magnitude_dps": 47.0519,
+          "accel_msd_ge5_count": 4,
+          "accel_msd_max": 11.28124,
+          "quiet": false
+        },
+        {
+          "second": 7,
+          "n": 10,
+          "accel_msd": 4.32958404,
+          "gyro_msd": 1295.3375600000002,
+          "accel_magnitude_mps2": 6.070100000000001,
+          "gyro_magnitude_dps": 47.7589,
+          "accel_msd_ge5_count": 4,
+          "accel_msd_max": 8.12627,
+          "quiet": false
+        },
+        {
+          "second": 8,
+          "n": 10,
+          "accel_msd": 4.3108848,
+          "gyro_msd": 1157.105779,
+          "accel_magnitude_mps2": 5.070899999999999,
+          "gyro_magnitude_dps": 45.2231,
+          "accel_msd_ge5_count": 4,
+          "accel_msd_max": 10.49055,
+          "quiet": false
+        },
+        {
+          "second": 9,
+          "n": 10,
+          "accel_msd": 3.8304372900000003,
+          "gyro_msd": 1008.3056060000001,
+          "accel_magnitude_mps2": 5.954400000000001,
+          "gyro_magnitude_dps": 41.414,
+          "accel_msd_ge5_count": 4,
+          "accel_msd_max": 8.611545,
+          "quiet": false
+        },
+        {
+          "second": 10,
+          "n": 10,
+          "accel_msd": 4.13806419,
+          "gyro_msd": 1277.21891,
+          "accel_magnitude_mps2": 6.048,
+          "gyro_magnitude_dps": 48.521499999999996,
+          "accel_msd_ge5_count": 4,
+          "accel_msd_max": 7.423362,
+          "quiet": false
+        },
+        {
+          "second": 11,
+          "n": 10,
+          "accel_msd": 4.298729484,
+          "gyro_msd": 1110.07296,
+          "accel_magnitude_mps2": 5.401999999999999,
+          "gyro_magnitude_dps": 50.2905,
+          "accel_msd_ge5_count": 6,
+          "accel_msd_max": 7.222299,
+          "quiet": false
+        },
+        {
+          "second": 12,
+          "n": 10,
+          "accel_msd": 4.27198093,
+          "gyro_msd": 1154.6947999999998,
+          "accel_magnitude_mps2": 6.0264,
+          "gyro_magnitude_dps": 48.605599999999995,
+          "accel_msd_ge5_count": 5,
+          "accel_msd_max": 7.11446,
+          "quiet": false
+        },
+        {
+          "second": 13,
+          "n": 9,
+          "accel_msd": 4.38624538888889,
+          "gyro_msd": 1163.44346,
+          "accel_magnitude_mps2": 5.326666666666667,
+          "gyro_magnitude_dps": 54.51166666666667,
+          "accel_msd_ge5_count": 4,
+          "accel_msd_max": 8.727333,
+          "quiet": false
+        },
+        {
+          "second": 14,
+          "n": 10,
+          "accel_msd": 3.9542726299999997,
+          "gyro_msd": 1230.556665,
+          "accel_magnitude_mps2": 6.339200000000001,
+          "gyro_magnitude_dps": 47.047200000000004,
+          "accel_msd_ge5_count": 3,
+          "accel_msd_max": 10.45545,
+          "quiet": false
+        },
+        {
+          "second": 15,
+          "n": 10,
+          "accel_msd": 3.601398072,
+          "gyro_msd": 927.7211950000001,
+          "accel_magnitude_mps2": 6.5142,
+          "gyro_magnitude_dps": 49.8898,
+          "accel_msd_ge5_count": 4,
+          "accel_msd_max": 7.194635,
+          "quiet": false
+        },
+        {
+          "second": 16,
+          "n": 10,
+          "accel_msd": 3.149384259,
+          "gyro_msd": 1002.662567,
+          "accel_magnitude_mps2": 6.6198999999999995,
+          "gyro_magnitude_dps": 44.7492,
+          "accel_msd_ge5_count": 3,
+          "accel_msd_max": 6.495797,
+          "quiet": false
+        },
+        {
+          "second": 17,
+          "n": 10,
+          "accel_msd": 3.2072085899999996,
+          "gyro_msd": 691.1887199999999,
+          "accel_magnitude_mps2": 6.944100000000001,
+          "gyro_magnitude_dps": 38.865500000000004,
+          "accel_msd_ge5_count": 3,
+          "accel_msd_max": 5.879536,
+          "quiet": false
+        },
+        {
+          "second": 18,
+          "n": 10,
+          "accel_msd": 3.8642764729999994,
+          "gyro_msd": 909.8507380000001,
+          "accel_magnitude_mps2": 6.660399999999998,
+          "gyro_magnitude_dps": 44.674400000000006,
+          "accel_msd_ge5_count": 3,
+          "accel_msd_max": 8.740317,
+          "quiet": false
+        },
+        {
+          "second": 19,
+          "n": 10,
+          "accel_msd": 3.3018237800000003,
+          "gyro_msd": 1043.365246,
+          "accel_magnitude_mps2": 6.8634,
+          "gyro_magnitude_dps": 47.895799999999994,
+          "accel_msd_ge5_count": 4,
+          "accel_msd_max": 6.983572,
+          "quiet": false
+        },
+        {
+          "second": 20,
+          "n": 10,
+          "accel_msd": 3.3822416399999993,
+          "gyro_msd": 916.218995,
+          "accel_magnitude_mps2": 7.272499999999999,
+          "gyro_magnitude_dps": 41.5,
+          "accel_msd_ge5_count": 2,
+          "accel_msd_max": 5.840267,
+          "quiet": false
+        },
+        {
+          "second": 21,
+          "n": 10,
+          "accel_msd": 3.6140157029999997,
+          "gyro_msd": 994.0975735,
+          "accel_magnitude_mps2": 6.6283,
+          "gyro_magnitude_dps": 46.02409999999999,
+          "accel_msd_ge5_count": 3,
+          "accel_msd_max": 7.283367,
+          "quiet": false
+        },
+        {
+          "second": 22,
+          "n": 10,
+          "accel_msd": 3.82021444,
+          "gyro_msd": 875.5803530000001,
+          "accel_magnitude_mps2": 6.987900000000001,
+          "gyro_magnitude_dps": 43.9945,
+          "accel_msd_ge5_count": 3,
+          "accel_msd_max": 6.12881,
+          "quiet": false
+        },
+        {
+          "second": 23,
+          "n": 10,
+          "accel_msd": 3.69037808,
+          "gyro_msd": 1109.09964,
+          "accel_magnitude_mps2": 6.5150999999999994,
+          "gyro_magnitude_dps": 51.1619,
+          "accel_msd_ge5_count": 4,
+          "accel_msd_max": 7.982429,
+          "quiet": false
+        },
+        {
+          "second": 24,
+          "n": 10,
+          "accel_msd": 3.10208464,
+          "gyro_msd": 1164.7692,
+          "accel_magnitude_mps2": 7.0727,
+          "gyro_magnitude_dps": 45.814,
+          "accel_msd_ge5_count": 1,
+          "accel_msd_max": 6.117526,
+          "quiet": false
+        },
+        {
+          "second": 25,
+          "n": 10,
+          "accel_msd": 4.0030212,
+          "gyro_msd": 1234.9728200000002,
+          "accel_magnitude_mps2": 7.010199999999999,
+          "gyro_magnitude_dps": 49.356199999999994,
+          "accel_msd_ge5_count": 4,
+          "accel_msd_max": 8.187657,
+          "quiet": false
+        },
+        {
+          "second": 26,
+          "n": 10,
+          "accel_msd": 4.4916567,
+          "gyro_msd": 1045.9032579999998,
+          "accel_magnitude_mps2": 6.5906,
+          "gyro_magnitude_dps": 44.6212,
+          "accel_msd_ge5_count": 3,
+          "accel_msd_max": 12.04114,
+          "quiet": false
+        },
+        {
+          "second": 27,
+          "n": 10,
+          "accel_msd": 4.24581651,
+          "gyro_msd": 1089.6986530000001,
+          "accel_magnitude_mps2": 6.6467,
+          "gyro_magnitude_dps": 48.977999999999994,
+          "accel_msd_ge5_count": 3,
+          "accel_msd_max": 9.452842,
+          "quiet": false
+        },
+        {
+          "second": 28,
+          "n": 9,
+          "accel_msd": 3.123257906666667,
+          "gyro_msd": 1072.0072,
+          "accel_magnitude_mps2": 6.115111111111112,
+          "gyro_magnitude_dps": 43.72355555555555,
+          "accel_msd_ge5_count": 1,
+          "accel_msd_max": 6.707885,
+          "quiet": false
+        },
+        {
+          "second": 29,
+          "n": 10,
+          "accel_msd": 3.4459929800000006,
+          "gyro_msd": 952.628649,
+          "accel_magnitude_mps2": 6.7809,
+          "gyro_magnitude_dps": 43.3444,
+          "accel_msd_ge5_count": 2,
+          "accel_msd_max": 5.503158,
+          "quiet": false
+        }
+      ],
+      "continuous_quiet_tail_start_s": null
+    },
+    {
+      "session_id": 48,
+      "notes": "Trial 44: Grandma runs at continuous pace",
+      "activity": "running-continuously",
+      "trial": 44,
+      "raw_n": 300,
+      "kept_n": 300,
+      "dropped_prefix_or_other_segments": 0,
+      "duration_s": 30.123,
+      "first_sample_number": 46,
+      "last_sample_number": 345,
+      "counter_discontinuities": 0,
+      "missing_counters": 0,
+      "nonpositive_time_deltas": 0,
+      "time_gaps_gt250ms": 0,
+      "dt_min_ms": 100.0,
+      "dt_median_ms": 101.0,
+      "dt_max_ms": 101.0,
+      "dt_p95_ms": 101.0,
+      "nullable_metric_counts": {
+        "board_time_ms": 0,
+        "accel_msd": 0,
+        "gyro_msd": 0,
+        "accel_magnitude_slope": 0,
+        "gyro_magnitude_slope": 0,
+        "accel_msd_slope": 0,
+        "gyro_msd_slope": 0
+      },
+      "accel_msd": {
+        "min": 0.001410494,
+        "median": 3.2809480000000004,
+        "mean": 3.623873607046667,
+        "p95": 8.249558500000003,
+        "max": 11.08014
+      },
+      "gyro_msd": {
+        "min": 0.9351797,
+        "median": 1086.3249999999998,
+        "mean": 1121.674134699,
+        "p95": 2630.3397000000004,
+        "max": 3307.42
+      },
+      "accel_magnitude_mps2": {
+        "min": 1.702,
+        "median": 7.677,
+        "mean": 7.4028333333333345,
+        "p95": 11.530149999999999,
+        "max": 12.799
+      },
+      "gyro_magnitude_dps": {
+        "min": 1.668,
+        "median": 48.156,
+        "mean": 47.57615,
+        "p95": 78.74710000000002,
+        "max": 100.65
+      },
+      "accel5_count": 103,
+      "accel5_percent": 34.333333333333336,
+      "accel5_pulses": 99,
+      "accel5_longest_consecutive": 2,
+      "first_accel5_s": 1.412,
+      "last_accel5_s": 30.123,
+      "first_accel5_after_2s": 2.217,
+      "first3s": {
+        "n": 30,
+        "accel_msd": 2.1834628730000003,
+        "gyro_msd": 688.2012336666667,
+        "accel_magnitude_mps2": 9.0158,
+        "gyro_magnitude_dps": 41.5248,
+        "accel_msd_ge5_count": 5
+      },
+      "last3s": {
+        "n": 30,
+        "accel_msd": 3.459975089800001,
+        "gyro_msd": 943.8151096666667,
+        "accel_magnitude_mps2": 7.078666666666666,
+        "gyro_magnitude_dps": 45.21353333333334,
+        "accel_msd_ge5_count": 7
+      },
+      "last5s": {
+        "n": 50,
+        "accel_msd": 3.5258228532800002,
+        "gyro_msd": 1070.2055103940002,
+        "accel_magnitude_mps2": 7.44904,
+        "gyro_magnitude_dps": 47.223859999999995,
+        "accel_msd_ge5_count": 14
+      },
+      "first10s": {
+        "n": 100,
+        "accel_msd": 3.480345741900001,
+        "gyro_msd": 1060.6646842,
+        "accel_magnitude_mps2": 7.715140000000002,
+        "gyro_magnitude_dps": 46.815780000000004,
+        "accel_msd_ge5_count": 34
+      },
+      "seconds10to20": {
+        "n": 99,
+        "accel_msd": 3.804809670303031,
+        "gyro_msd": 1231.3503324040405,
+        "accel_magnitude_mps2": 6.918787878787881,
+        "gyro_magnitude_dps": 48.39434343434343,
+        "accel_msd_ge5_count": 36
+      },
+      "last10s": {
+        "n": 100,
+        "accel_msd": 3.61776298564,
+        "gyro_msd": 1062.0157208169999,
+        "accel_magnitude_mps2": 7.601840000000001,
+        "gyro_magnitude_dps": 47.486349999999995,
+        "accel_msd_ge5_count": 33
+      },
+      "first_trigger": {
+        "time_s": 1.412,
+        "pre3s": {
+          "n": 14,
+          "accel_msd": 1.2677429364285715,
+          "gyro_msd": 436.4592721428572,
+          "accel_magnitude_mps2": 9.745214285714285,
+          "gyro_magnitude_dps": 36.43685714285714,
+          "accel_msd_ge5_count": 0
+        },
+        "post5to8s": {
+          "n": 30,
+          "accel_msd": 4.507623153333332,
+          "gyro_msd": 1433.5559793333334,
+          "accel_magnitude_mps2": 7.260033333333333,
+          "gyro_magnitude_dps": 50.74653333333333,
+          "accel_msd_ge5_count": 14
+        }
+      },
+      "after_warmup_trigger": {
+        "time_s": 2.217,
+        "pre3s": {
+          "n": 22,
+          "accel_msd": 1.8252466586363638,
+          "gyro_msd": 604.2767277272726,
+          "accel_magnitude_mps2": 9.108590909090909,
+          "gyro_magnitude_dps": 39.775454545454544,
+          "accel_msd_ge5_count": 2
+        },
+        "post5to8s": {
+          "n": 30,
+          "accel_msd": 4.128151866666666,
+          "gyro_msd": 1359.7462659999997,
+          "accel_magnitude_mps2": 7.410933333333334,
+          "gyro_magnitude_dps": 50.127,
+          "accel_msd_ge5_count": 13
+        }
+      },
+      "one_second_bins": [
+        {
+          "second": 0,
+          "n": 10,
+          "accel_msd": 0.756777501,
+          "gyro_msd": 319.249701,
+          "accel_magnitude_mps2": 9.371500000000001,
+          "gyro_magnitude_dps": 30.374100000000006,
+          "accel_msd_ge5_count": 0,
+          "accel_msd_max": 3.204461,
+          "quiet": false
+        },
+        {
+          "second": 1,
+          "n": 10,
+          "accel_msd": 2.936334671,
+          "gyro_msd": 798.91228,
+          "accel_magnitude_mps2": 9.594000000000001,
+          "gyro_magnitude_dps": 49.2478,
+          "accel_msd_ge5_count": 2,
+          "accel_msd_max": 5.774518,
+          "quiet": false
+        },
+        {
+          "second": 2,
+          "n": 10,
+          "accel_msd": 2.857276447,
+          "gyro_msd": 946.44172,
+          "accel_magnitude_mps2": 8.081900000000001,
+          "gyro_magnitude_dps": 44.9525,
+          "accel_msd_ge5_count": 3,
+          "accel_msd_max": 6.470119,
+          "quiet": false
+        },
+        {
+          "second": 3,
+          "n": 10,
+          "accel_msd": 4.20011019,
+          "gyro_msd": 1222.1354130000004,
+          "accel_magnitude_mps2": 7.1068,
+          "gyro_magnitude_dps": 57.7207,
+          "accel_msd_ge5_count": 4,
+          "accel_msd_max": 9.024566,
+          "quiet": false
+        },
+        {
+          "second": 4,
+          "n": 10,
+          "accel_msd": 3.2711682699999995,
+          "gyro_msd": 956.06298,
+          "accel_magnitude_mps2": 7.108199999999999,
+          "gyro_magnitude_dps": 42.723699999999994,
+          "accel_msd_ge5_count": 3,
+          "accel_msd_max": 6.587031,
+          "quiet": false
+        },
+        {
+          "second": 5,
+          "n": 10,
+          "accel_msd": 3.7261340699999996,
+          "gyro_msd": 923.2023800000001,
+          "accel_magnitude_mps2": 6.854000000000001,
+          "gyro_magnitude_dps": 43.9064,
+          "accel_msd_ge5_count": 4,
+          "accel_msd_max": 6.529936,
+          "quiet": false
+        },
+        {
+          "second": 6,
+          "n": 10,
+          "accel_msd": 4.174368339999999,
+          "gyro_msd": 1197.60665,
+          "accel_magnitude_mps2": 7.0432999999999995,
+          "gyro_magnitude_dps": 47.5069,
+          "accel_msd_ge5_count": 4,
+          "accel_msd_max": 9.689999,
+          "quiet": false
+        },
+        {
+          "second": 7,
+          "n": 10,
+          "accel_msd": 5.59374657,
+          "gyro_msd": 1649.98409,
+          "accel_magnitude_mps2": 6.939200000000001,
+          "gyro_magnitude_dps": 49.563500000000005,
+          "accel_msd_ge5_count": 6,
+          "accel_msd_max": 11.08014,
+          "quiet": false
+        },
+        {
+          "second": 8,
+          "n": 10,
+          "accel_msd": 3.9342981800000003,
+          "gyro_msd": 1351.457548,
+          "accel_magnitude_mps2": 7.769800000000001,
+          "gyro_magnitude_dps": 51.818,
+          "accel_msd_ge5_count": 3,
+          "accel_msd_max": 7.983552,
+          "quiet": false
+        },
+        {
+          "second": 9,
+          "n": 10,
+          "accel_msd": 3.3532431799999998,
+          "gyro_msd": 1241.59408,
+          "accel_magnitude_mps2": 7.2827,
+          "gyro_magnitude_dps": 50.34420000000001,
+          "accel_msd_ge5_count": 5,
+          "accel_msd_max": 6.574655,
+          "quiet": false
+        },
+        {
+          "second": 10,
+          "n": 10,
+          "accel_msd": 3.1302078,
+          "gyro_msd": 1054.81613,
+          "accel_magnitude_mps2": 7.4898,
+          "gyro_magnitude_dps": 43.00410000000001,
+          "accel_msd_ge5_count": 2,
+          "accel_msd_max": 6.276977,
+          "quiet": false
+        },
+        {
+          "second": 11,
+          "n": 10,
+          "accel_msd": 3.7362991900000004,
+          "gyro_msd": 1330.0371099999998,
+          "accel_magnitude_mps2": 7.3268,
+          "gyro_magnitude_dps": 50.4981,
+          "accel_msd_ge5_count": 4,
+          "accel_msd_max": 8.818631,
+          "quiet": false
+        },
+        {
+          "second": 12,
+          "n": 10,
+          "accel_msd": 4.4001475999999995,
+          "gyro_msd": 1467.154047,
+          "accel_magnitude_mps2": 6.2001,
+          "gyro_magnitude_dps": 52.907000000000004,
+          "accel_msd_ge5_count": 4,
+          "accel_msd_max": 9.806622,
+          "quiet": false
+        },
+        {
+          "second": 13,
+          "n": 9,
+          "accel_msd": 5.494017666666666,
+          "gyro_msd": 1502.5987555555555,
+          "accel_magnitude_mps2": 6.180555555555555,
+          "gyro_magnitude_dps": 54.87199999999999,
+          "accel_msd_ge5_count": 4,
+          "accel_msd_max": 9.275633,
+          "quiet": false
+        },
+        {
+          "second": 14,
+          "n": 10,
+          "accel_msd": 3.79715908,
+          "gyro_msd": 1441.599992,
+          "accel_magnitude_mps2": 6.6651,
+          "gyro_magnitude_dps": 49.8094,
+          "accel_msd_ge5_count": 4,
+          "accel_msd_max": 7.739954,
+          "quiet": false
+        },
+        {
+          "second": 15,
+          "n": 10,
+          "accel_msd": 3.0312388559999994,
+          "gyro_msd": 1095.1113568,
+          "accel_magnitude_mps2": 7.388799999999999,
+          "gyro_magnitude_dps": 43.20870000000001,
+          "accel_msd_ge5_count": 3,
+          "accel_msd_max": 5.777949,
+          "quiet": false
+        },
+        {
+          "second": 16,
+          "n": 10,
+          "accel_msd": 3.9238092700000005,
+          "gyro_msd": 1256.336471,
+          "accel_magnitude_mps2": 7.416699999999999,
+          "gyro_magnitude_dps": 47.5535,
+          "accel_msd_ge5_count": 4,
+          "accel_msd_max": 8.773913,
+          "quiet": false
+        },
+        {
+          "second": 17,
+          "n": 10,
+          "accel_msd": 3.5275613800000003,
+          "gyro_msd": 1016.65858,
+          "accel_magnitude_mps2": 7.143000000000001,
+          "gyro_magnitude_dps": 47.5014,
+          "accel_msd_ge5_count": 3,
+          "accel_msd_max": 7.119107,
+          "quiet": false
+        },
+        {
+          "second": 18,
+          "n": 10,
+          "accel_msd": 3.6115022100000003,
+          "gyro_msd": 1100.47089,
+          "accel_magnitude_mps2": 6.857100000000001,
+          "gyro_magnitude_dps": 48.8855,
+          "accel_msd_ge5_count": 4,
+          "accel_msd_max": 8.242506,
+          "quiet": false
+        },
+        {
+          "second": 19,
+          "n": 10,
+          "accel_msd": 3.56507445,
+          "gyro_msd": 1075.844834,
+          "accel_magnitude_mps2": 6.4460999999999995,
+          "gyro_magnitude_dps": 46.3515,
+          "accel_msd_ge5_count": 4,
+          "accel_msd_max": 9.089769,
+          "quiet": false
+        },
+        {
+          "second": 20,
+          "n": 10,
+          "accel_msd": 3.63699387,
+          "gyro_msd": 1169.6761999999999,
+          "accel_magnitude_mps2": 7.344099999999999,
+          "gyro_magnitude_dps": 50.648,
+          "accel_msd_ge5_count": 4,
+          "accel_msd_max": 7.797174,
+          "quiet": false
+        },
+        {
+          "second": 21,
+          "n": 10,
+          "accel_msd": 3.0202693700000003,
+          "gyro_msd": 953.5846870000001,
+          "accel_magnitude_mps2": 8.386800000000001,
+          "gyro_magnitude_dps": 43.0339,
+          "accel_msd_ge5_count": 2,
+          "accel_msd_max": 6.786969,
+          "quiet": false
+        },
+        {
+          "second": 22,
+          "n": 10,
+          "accel_msd": 3.17059642,
+          "gyro_msd": 1081.5169409999999,
+          "accel_magnitude_mps2": 8.078800000000001,
+          "gyro_magnitude_dps": 45.815900000000006,
+          "accel_msd_ge5_count": 3,
+          "accel_msd_max": 7.214157,
+          "quiet": false
+        },
+        {
+          "second": 23,
+          "n": 10,
+          "accel_msd": 4.05306536,
+          "gyro_msd": 1276.65755,
+          "accel_magnitude_mps2": 6.7719,
+          "gyro_magnitude_dps": 48.176500000000004,
+          "accel_msd_ge5_count": 4,
+          "accel_msd_max": 9.323399,
+          "quiet": false
+        },
+        {
+          "second": 24,
+          "n": 10,
+          "accel_msd": 4.06938847,
+          "gyro_msd": 993.7340081999998,
+          "accel_magnitude_mps2": 7.8947,
+          "gyro_magnitude_dps": 48.94519999999999,
+          "accel_msd_ge5_count": 5,
+          "accel_msd_max": 7.971914,
+          "quiet": false
+        },
+        {
+          "second": 25,
+          "n": 10,
+          "accel_msd": 4.2391328360000005,
+          "gyro_msd": 1278.12369,
+          "accel_magnitude_mps2": 8.2571,
+          "gyro_magnitude_dps": 54.612199999999994,
+          "accel_msd_ge5_count": 4,
+          "accel_msd_max": 10.94762,
+          "quiet": false
+        },
+        {
+          "second": 26,
+          "n": 10,
+          "accel_msd": 3.6690187100000005,
+          "gyro_msd": 1091.7601029699997,
+          "accel_magnitude_mps2": 7.4101,
+          "gyro_magnitude_dps": 49.7791,
+          "accel_msd_ge5_count": 4,
+          "accel_msd_max": 8.017532,
+          "quiet": false
+        },
+        {
+          "second": 27,
+          "n": 9,
+          "accel_msd": 3.0366331900000003,
+          "gyro_msd": 1043.8537655555556,
+          "accel_magnitude_mps2": 7.429666666666667,
+          "gyro_magnitude_dps": 43.79677777777778,
+          "accel_msd_ge5_count": 1,
+          "accel_msd_max": 6.041808,
+          "quiet": false
+        },
+        {
+          "second": 28,
+          "n": 10,
+          "accel_msd": 3.4034152500000006,
+          "gyro_msd": 869.2361999999999,
+          "accel_magnitude_mps2": 7.360700000000001,
+          "gyro_magnitude_dps": 42.4859,
+          "accel_msd_ge5_count": 3,
+          "accel_msd_max": 5.811608,
+          "quiet": false
+        },
+        {
+          "second": 29,
+          "n": 10,
+          "accel_msd": 3.6388111994,
+          "gyro_msd": 962.04666,
+          "accel_magnitude_mps2": 6.978,
+          "gyro_magnitude_dps": 44.685900000000004,
+          "accel_msd_ge5_count": 2,
+          "accel_msd_max": 6.252195,
+          "quiet": false
+        }
+      ],
+      "continuous_quiet_tail_start_s": null
+    },
+    {
+      "session_id": 49,
+      "notes": "Trial 45: Grandma runs at continuous pace",
+      "activity": "running-continuously",
+      "trial": 45,
+      "raw_n": 299,
+      "kept_n": 299,
+      "dropped_prefix_or_other_segments": 0,
+      "duration_s": 30.032,
+      "first_sample_number": 429,
+      "last_sample_number": 727,
+      "counter_discontinuities": 0,
+      "missing_counters": 0,
+      "nonpositive_time_deltas": 0,
+      "time_gaps_gt250ms": 0,
+      "dt_min_ms": 100.0,
+      "dt_median_ms": 101.0,
+      "dt_max_ms": 101.0,
+      "dt_p95_ms": 101.0,
+      "nullable_metric_counts": {
+        "board_time_ms": 0,
+        "accel_msd": 0,
+        "gyro_msd": 0,
+        "accel_magnitude_slope": 0,
+        "gyro_magnitude_slope": 0,
+        "accel_msd_slope": 0,
+        "gyro_msd_slope": 0
+      },
+      "accel_msd": {
+        "min": 0.001699009,
+        "median": 3.279827,
+        "mean": 3.1960690470903006,
+        "p95": 7.302402099999998,
+        "max": 10.84164
+      },
+      "gyro_msd": {
+        "min": 2.1073,
+        "median": 676.1337,
+        "mean": 659.0950865384615,
+        "p95": 1457.6856,
+        "max": 1782.393
+      },
+      "accel_magnitude_mps2": {
+        "min": 2.691,
+        "median": 7.011,
+        "mean": 6.852063545150501,
+        "p95": 10.0289,
+        "max": 12.469
+      },
+      "gyro_magnitude_dps": {
+        "min": 4.01,
+        "median": 32.685,
+        "mean": 31.654357859531768,
+        "p95": 53.92959999999999,
+        "max": 67.5
+      },
+      "accel5_count": 86,
+      "accel5_percent": 28.762541806020064,
+      "accel5_pulses": 85,
+      "accel5_longest_consecutive": 2,
+      "first_accel5_s": 1.412,
+      "last_accel5_s": 29.83,
+      "first_accel5_after_2s": 2.723,
+      "first3s": {
+        "n": 30,
+        "accel_msd": 1.9952254987999998,
+        "gyro_msd": 476.3825276,
+        "accel_magnitude_mps2": 8.479833333333335,
+        "gyro_magnitude_dps": 30.800966666666664,
+        "accel_msd_ge5_count": 3
+      },
+      "last3s": {
+        "n": 30,
+        "accel_msd": 3.2206776565333333,
+        "gyro_msd": 741.6155206666666,
+        "accel_magnitude_mps2": 6.461033333333334,
+        "gyro_magnitude_dps": 33.302466666666675,
+        "accel_msd_ge5_count": 10
+      },
+      "last5s": {
+        "n": 50,
+        "accel_msd": 3.2276408219200006,
+        "gyro_msd": 724.42994574,
+        "accel_magnitude_mps2": 6.17944,
+        "gyro_magnitude_dps": 32.298339999999996,
+        "accel_msd_ge5_count": 16
+      },
+      "first10s": {
+        "n": 100,
+        "accel_msd": 2.8805509635399993,
+        "gyro_msd": 589.97332498,
+        "accel_magnitude_mps2": 7.3947899999999995,
+        "gyro_magnitude_dps": 31.040390000000002,
+        "accel_msd_ge5_count": 26
+      },
+      "seconds10to20": {
+        "n": 99,
+        "accel_msd": 3.324491545757576,
+        "gyro_msd": 684.1830801010102,
+        "accel_magnitude_mps2": 6.596707070707072,
+        "gyro_magnitude_dps": 32.09166666666666,
+        "accel_msd_ge5_count": 30
+      },
+      "last10s": {
+        "n": 100,
+        "accel_msd": 3.3844488569599998,
+        "gyro_msd": 703.3797344699998,
+        "accel_magnitude_mps2": 6.562139999999999,
+        "gyro_magnitude_dps": 31.835389999999997,
+        "accel_msd_ge5_count": 30
+      },
+      "first_trigger": {
+        "time_s": 1.412,
+        "pre3s": {
+          "n": 14,
+          "accel_msd": 1.0542769967857144,
+          "gyro_msd": 290.58385200000004,
+          "accel_magnitude_mps2": 9.714214285714288,
+          "gyro_magnitude_dps": 28.047428571428576,
+          "accel_msd_ge5_count": 0
+        },
+        "post5to8s": {
+          "n": 30,
+          "accel_msd": 3.430418647666666,
+          "gyro_msd": 681.4141616666665,
+          "accel_magnitude_mps2": 6.8031,
+          "gyro_magnitude_dps": 33.73133333333334,
+          "accel_msd_ge5_count": 9
+        }
+      },
+      "after_warmup_trigger": {
+        "time_s": 2.723,
+        "pre3s": {
+          "n": 27,
+          "accel_msd": 1.8126430986666666,
+          "gyro_msd": 484.9285236296296,
+          "accel_magnitude_mps2": 8.729777777777779,
+          "gyro_magnitude_dps": 31.054407407407407,
+          "accel_msd_ge5_count": 2
+        },
+        "post5to8s": {
+          "n": 30,
+          "accel_msd": 3.2818110886666663,
+          "gyro_msd": 577.508329,
+          "accel_magnitude_mps2": 7.043433333333334,
+          "gyro_magnitude_dps": 29.487766666666666,
+          "accel_msd_ge5_count": 10
+        }
+      },
+      "one_second_bins": [
+        {
+          "second": 0,
+          "n": 10,
+          "accel_msd": 0.8804943854999999,
+          "gyro_msd": 140.87227479999999,
+          "accel_magnitude_mps2": 9.806000000000001,
+          "gyro_magnitude_dps": 25.7731,
+          "accel_msd_ge5_count": 0,
+          "accel_msd_max": 3.671848,
+          "quiet": false
+        },
+        {
+          "second": 1,
+          "n": 10,
+          "accel_msd": 2.1420188809,
+          "gyro_msd": 686.2305269999999,
+          "accel_magnitude_mps2": 8.2071,
+          "gyro_magnitude_dps": 32.9873,
+          "accel_msd_ge5_count": 2,
+          "accel_msd_max": 5.896206,
+          "quiet": false
+        },
+        {
+          "second": 2,
+          "n": 10,
+          "accel_msd": 2.96316323,
+          "gyro_msd": 602.044781,
+          "accel_magnitude_mps2": 7.426400000000001,
+          "gyro_magnitude_dps": 33.6425,
+          "accel_msd_ge5_count": 1,
+          "accel_msd_max": 5.808786,
+          "quiet": false
+        },
+        {
+          "second": 3,
+          "n": 10,
+          "accel_msd": 3.5616219530000004,
+          "gyro_msd": 682.1846559999999,
+          "accel_magnitude_mps2": 6.2935,
+          "gyro_magnitude_dps": 32.8087,
+          "accel_msd_ge5_count": 5,
+          "accel_msd_max": 10.84164,
+          "quiet": false
+        },
+        {
+          "second": 4,
+          "n": 10,
+          "accel_msd": 2.848534441,
+          "gyro_msd": 556.760844,
+          "accel_magnitude_mps2": 7.3456,
+          "gyro_magnitude_dps": 26.2389,
+          "accel_msd_ge5_count": 2,
+          "accel_msd_max": 6.819153,
+          "quiet": false
+        },
+        {
+          "second": 5,
+          "n": 10,
+          "accel_msd": 2.9611984719999995,
+          "gyro_msd": 553.480051,
+          "accel_magnitude_mps2": 7.4708,
+          "gyro_magnitude_dps": 28.404400000000003,
+          "accel_msd_ge5_count": 4,
+          "accel_msd_max": 8.036928,
+          "quiet": false
+        },
+        {
+          "second": 6,
+          "n": 10,
+          "accel_msd": 3.88037194,
+          "gyro_msd": 659.6112909999999,
+          "accel_magnitude_mps2": 6.6316999999999995,
+          "gyro_magnitude_dps": 33.87689999999999,
+          "accel_msd_ge5_count": 3,
+          "accel_msd_max": 9.731351,
+          "quiet": false
+        },
+        {
+          "second": 7,
+          "n": 10,
+          "accel_msd": 3.3819466799999995,
+          "gyro_msd": 787.303537,
+          "accel_magnitude_mps2": 7.0785,
+          "gyro_magnitude_dps": 36.2886,
+          "accel_msd_ge5_count": 2,
+          "accel_msd_max": 10.53992,
+          "quiet": false
+        },
+        {
+          "second": 8,
+          "n": 10,
+          "accel_msd": 3.003484143,
+          "gyro_msd": 626.3254280000001,
+          "accel_magnitude_mps2": 6.544,
+          "gyro_magnitude_dps": 32.5944,
+          "accel_msd_ge5_count": 4,
+          "accel_msd_max": 6.761226,
+          "quiet": false
+        },
+        {
+          "second": 9,
+          "n": 10,
+          "accel_msd": 3.18267551,
+          "gyro_msd": 604.91986,
+          "accel_magnitude_mps2": 7.144299999999999,
+          "gyro_magnitude_dps": 27.7891,
+          "accel_msd_ge5_count": 3,
+          "accel_msd_max": 6.294864,
+          "quiet": false
+        },
+        {
+          "second": 10,
+          "n": 10,
+          "accel_msd": 2.770181663,
+          "gyro_msd": 533.361662,
+          "accel_magnitude_mps2": 8.2502,
+          "gyro_magnitude_dps": 27.5351,
+          "accel_msd_ge5_count": 2,
+          "accel_msd_max": 5.566405,
+          "quiet": false
+        },
+        {
+          "second": 11,
+          "n": 10,
+          "accel_msd": 3.4923985499999994,
+          "gyro_msd": 559.26845,
+          "accel_magnitude_mps2": 7.125,
+          "gyro_magnitude_dps": 31.226,
+          "accel_msd_ge5_count": 3,
+          "accel_msd_max": 7.284586,
+          "quiet": false
+        },
+        {
+          "second": 12,
+          "n": 9,
+          "accel_msd": 3.6454630333333333,
+          "gyro_msd": 656.7131077777777,
+          "accel_magnitude_mps2": 6.675333333333334,
+          "gyro_magnitude_dps": 30.760666666666665,
+          "accel_msd_ge5_count": 4,
+          "accel_msd_max": 9.000105,
+          "quiet": false
+        },
+        {
+          "second": 13,
+          "n": 10,
+          "accel_msd": 3.31992634,
+          "gyro_msd": 721.490775,
+          "accel_magnitude_mps2": 5.8418,
+          "gyro_magnitude_dps": 34.141200000000005,
+          "accel_msd_ge5_count": 4,
+          "accel_msd_max": 7.362996,
+          "quiet": false
+        },
+        {
+          "second": 14,
+          "n": 10,
+          "accel_msd": 2.970751,
+          "gyro_msd": 697.099856,
+          "accel_magnitude_mps2": 7.109399999999999,
+          "gyro_magnitude_dps": 30.427100000000003,
+          "accel_msd_ge5_count": 3,
+          "accel_msd_max": 7.596466,
+          "quiet": false
+        },
+        {
+          "second": 15,
+          "n": 10,
+          "accel_msd": 3.10537992,
+          "gyro_msd": 664.30395,
+          "accel_magnitude_mps2": 6.334099999999999,
+          "gyro_magnitude_dps": 34.6296,
+          "accel_msd_ge5_count": 2,
+          "accel_msd_max": 6.728625,
+          "quiet": false
+        },
+        {
+          "second": 16,
+          "n": 10,
+          "accel_msd": 3.7106925300000007,
+          "gyro_msd": 798.0642699999999,
+          "accel_magnitude_mps2": 6.08,
+          "gyro_magnitude_dps": 33.430299999999995,
+          "accel_msd_ge5_count": 3,
+          "accel_msd_max": 8.415582,
+          "quiet": false
+        },
+        {
+          "second": 17,
+          "n": 10,
+          "accel_msd": 3.6825787599999997,
+          "gyro_msd": 802.487785,
+          "accel_magnitude_mps2": 5.9382,
+          "gyro_magnitude_dps": 35.340300000000006,
+          "accel_msd_ge5_count": 4,
+          "accel_msd_max": 7.344757,
+          "quiet": false
+        },
+        {
+          "second": 18,
+          "n": 10,
+          "accel_msd": 3.0753780699999997,
+          "gyro_msd": 712.5087380000001,
+          "accel_magnitude_mps2": 6.271300000000001,
+          "gyro_magnitude_dps": 33.243399999999994,
+          "accel_msd_ge5_count": 3,
+          "accel_msd_max": 7.730625,
+          "quiet": false
+        },
+        {
+          "second": 19,
+          "n": 10,
+          "accel_msd": 3.50426274,
+          "gyro_msd": 693.78521,
+          "accel_magnitude_mps2": 6.3496,
+          "gyro_magnitude_dps": 30.0499,
+          "accel_msd_ge5_count": 2,
+          "accel_msd_max": 6.211677,
+          "quiet": false
+        },
+        {
+          "second": 20,
+          "n": 10,
+          "accel_msd": 2.9801343099999995,
+          "gyro_msd": 553.0356629999999,
+          "accel_magnitude_mps2": 7.444799999999999,
+          "gyro_magnitude_dps": 29.123,
+          "accel_msd_ge5_count": 1,
+          "accel_msd_max": 5.80603,
+          "quiet": false
+        },
+        {
+          "second": 21,
+          "n": 10,
+          "accel_msd": 3.50960618,
+          "gyro_msd": 765.5041180000001,
+          "accel_magnitude_mps2": 7.0033,
+          "gyro_magnitude_dps": 35.778999999999996,
+          "accel_msd_ge5_count": 3,
+          "accel_msd_max": 7.521485,
+          "quiet": false
+        },
+        {
+          "second": 22,
+          "n": 10,
+          "accel_msd": 2.98453874,
+          "gyro_msd": 590.829536,
+          "accel_magnitude_mps2": 5.9556,
+          "gyro_magnitude_dps": 29.580599999999997,
+          "accel_msd_ge5_count": 3,
+          "accel_msd_max": 6.507368,
+          "quiet": false
+        },
+        {
+          "second": 23,
+          "n": 10,
+          "accel_msd": 3.8887874299999994,
+          "gyro_msd": 723.064359,
+          "accel_magnitude_mps2": 7.1872,
+          "gyro_magnitude_dps": 31.584600000000002,
+          "accel_msd_ge5_count": 3,
+          "accel_msd_max": 8.249945,
+          "quiet": false
+        },
+        {
+          "second": 24,
+          "n": 10,
+          "accel_msd": 4.343217800000001,
+          "gyro_msd": 779.21394,
+          "accel_magnitude_mps2": 7.1333,
+          "gyro_magnitude_dps": 30.794999999999998,
+          "accel_msd_ge5_count": 4,
+          "accel_msd_max": 7.546939,
+          "quiet": false
+        },
+        {
+          "second": 25,
+          "n": 10,
+          "accel_msd": 3.48413093,
+          "gyro_msd": 702.1673967,
+          "accel_magnitude_mps2": 5.5687,
+          "gyro_magnitude_dps": 32.77,
+          "accel_msd_ge5_count": 4,
+          "accel_msd_max": 7.654682,
+          "quiet": false
+        },
+        {
+          "second": 26,
+          "n": 9,
+          "accel_msd": 3.131564122222222,
+          "gyro_msd": 705.233611111111,
+          "accel_magnitude_mps2": 5.8694444444444445,
+          "gyro_magnitude_dps": 27.436999999999998,
+          "accel_msd_ge5_count": 2,
+          "accel_msd_max": 7.187711,
+          "quiet": false
+        },
+        {
+          "second": 27,
+          "n": 10,
+          "accel_msd": 3.1538947295999997,
+          "gyro_msd": 638.5988009999999,
+          "accel_magnitude_mps2": 6.1415999999999995,
+          "gyro_magnitude_dps": 31.119899999999994,
+          "accel_msd_ge5_count": 3,
+          "accel_msd_max": 5.541561,
+          "quiet": false
+        },
+        {
+          "second": 28,
+          "n": 10,
+          "accel_msd": 2.83636254,
+          "gyro_msd": 836.747813,
+          "accel_magnitude_mps2": 6.138299999999999,
+          "gyro_magnitude_dps": 36.1552,
+          "accel_msd_ge5_count": 3,
+          "accel_msd_max": 6.659414,
+          "quiet": false
+        },
+        {
+          "second": 29,
+          "n": 10,
+          "accel_msd": 3.7021079,
+          "gyro_msd": 712.489358,
+          "accel_magnitude_mps2": 6.9664,
+          "gyro_magnitude_dps": 32.798700000000004,
+          "accel_msd_ge5_count": 4,
+          "accel_msd_max": 6.769786,
+          "quiet": false
+        }
+      ],
+      "continuous_quiet_tail_start_s": null
+    },
+    {
+      "session_id": 50,
+      "notes": "Trial 46: Grandma runs at continuous pace then stops",
+      "activity": "run-then-stop",
+      "trial": 46,
+      "raw_n": 301,
+      "kept_n": 301,
+      "dropped_prefix_or_other_segments": 0,
+      "duration_s": 30.135,
+      "first_sample_number": 1340,
+      "last_sample_number": 1640,
+      "counter_discontinuities": 0,
+      "missing_counters": 0,
+      "nonpositive_time_deltas": 0,
+      "time_gaps_gt250ms": 0,
+      "dt_min_ms": 100.0,
+      "dt_median_ms": 100.0,
+      "dt_max_ms": 101.0,
+      "dt_p95_ms": 101.0,
+      "nullable_metric_counts": {
+        "board_time_ms": 0,
+        "accel_msd": 0,
+        "gyro_msd": 0,
+        "accel_magnitude_slope": 0,
+        "gyro_magnitude_slope": 0,
+        "accel_msd_slope": 0,
+        "gyro_msd_slope": 0
+      },
+      "accel_msd": {
+        "min": 3.205668e-05,
+        "median": 0.1347988,
+        "mean": 2.293992055531595,
+        "p95": 8.479182,
+        "max": 14.41482
+      },
+      "gyro_msd": {
+        "min": 0.005315669,
+        "median": 48.41553,
+        "mean": 550.9664167363886,
+        "p95": 2086.824,
+        "max": 3169.389
+      },
+      "accel_magnitude_mps2": {
+        "min": 1.654,
+        "median": 9.586,
+        "mean": 7.997308970099667,
+        "p95": 9.912,
+        "max": 13.479
+      },
+      "gyro_magnitude_dps": {
+        "min": 0.329,
+        "median": 15.882,
+        "mean": 22.727126245847174,
+        "p95": 63.114,
+        "max": 87.021
+      },
+      "accel5_count": 68,
+      "accel5_percent": 22.591362126245848,
+      "accel5_pulses": 58,
+      "accel5_longest_consecutive": 3,
+      "first_accel5_s": 0.705,
+      "last_accel5_s": 15.7,
+      "first_accel5_after_2s": 2.117,
+      "first3s": {
+        "n": 30,
+        "accel_msd": 4.408926948399999,
+        "gyro_msd": 846.8968235366666,
+        "accel_magnitude_mps2": 7.019033333333335,
+        "gyro_magnitude_dps": 36.59023333333334,
+        "accel_msd_ge5_count": 13
+      },
+      "last3s": {
+        "n": 30,
+        "accel_msd": 0.023329867475666666,
+        "gyro_msd": 5.973840792333334,
+        "accel_magnitude_mps2": 9.836466666666666,
+        "gyro_magnitude_dps": 8.2511,
+        "accel_msd_ge5_count": 0
+      },
+      "last5s": {
+        "n": 50,
+        "accel_msd": 0.014257580199800004,
+        "gyro_msd": 3.7088057498,
+        "accel_magnitude_mps2": 9.834140000000001,
+        "gyro_magnitude_dps": 5.5912,
+        "accel_msd_ge5_count": 0
+      },
+      "first10s": {
+        "n": 100,
+        "accel_msd": 4.11770708142,
+        "gyro_msd": 956.607742561,
+        "accel_magnitude_mps2": 6.76037,
+        "gyro_magnitude_dps": 37.818310000000004,
+        "accel_msd_ge5_count": 39
+      },
+      "seconds10to20": {
+        "n": 99,
+        "accel_msd": 2.8077123915000004,
+        "gyro_msd": 706.9397334681818,
+        "accel_magnitude_mps2": 7.351434343434343,
+        "gyro_magnitude_dps": 26.979242424242422,
+        "accel_msd_ge5_count": 29
+      },
+      "last10s": {
+        "n": 100,
+        "accel_msd": 0.007502251495100001,
+        "gyro_msd": 1.92809704673,
+        "accel_magnitude_mps2": 9.83694,
+        "gyro_magnitude_dps": 3.7655999999999996,
+        "accel_msd_ge5_count": 0
+      },
+      "first_trigger": {
+        "time_s": 0.705,
+        "pre3s": {
+          "n": 7,
+          "accel_msd": 0.3419680931428571,
+          "gyro_msd": 169.34340944285714,
+          "accel_magnitude_mps2": 10.670285714285715,
+          "gyro_magnitude_dps": 16.85328571428571,
+          "accel_msd_ge5_count": 0
+        },
+        "post5to8s": {
+          "n": 30,
+          "accel_msd": 3.6444942863333334,
+          "gyro_msd": 964.1506593333331,
+          "accel_magnitude_mps2": 7.305000000000001,
+          "gyro_magnitude_dps": 38.322300000000006,
+          "accel_msd_ge5_count": 9
+        }
+      },
+      "after_warmup_trigger": {
+        "time_s": 2.117,
+        "pre3s": {
+          "n": 21,
+          "accel_msd": 3.9013790881904757,
+          "gyro_msd": 800.886021242857,
+          "accel_magnitude_mps2": 7.224666666666668,
+          "gyro_magnitude_dps": 35.61409523809524,
+          "accel_msd_ge5_count": 8
+        },
+        "post5to8s": {
+          "n": 30,
+          "accel_msd": 4.059847594,
+          "gyro_msd": 1072.3439913333332,
+          "accel_magnitude_mps2": 6.579633333333333,
+          "gyro_magnitude_dps": 37.67823333333334,
+          "accel_msd_ge5_count": 10
+        }
+      },
+      "one_second_bins": [
+        {
+          "second": 0,
+          "n": 10,
+          "accel_msd": 2.3331832652,
+          "gyro_msd": 348.95439661,
+          "accel_magnitude_mps2": 9.5631,
+          "gyro_magnitude_dps": 28.3053,
+          "accel_msd_ge5_count": 3,
+          "accel_msd_max": 8.479182,
+          "quiet": false
+        },
+        {
+          "second": 1,
+          "n": 10,
+          "accel_msd": 5.43952842,
+          "gyro_msd": 1069.4797480000002,
+          "accel_magnitude_mps2": 5.193500000000001,
+          "gyro_magnitude_dps": 40.894800000000004,
+          "accel_msd_ge5_count": 5,
+          "accel_msd_max": 14.41482,
+          "quiet": false
+        },
+        {
+          "second": 2,
+          "n": 10,
+          "accel_msd": 5.45406916,
+          "gyro_msd": 1122.2563260000002,
+          "accel_magnitude_mps2": 6.3005,
+          "gyro_magnitude_dps": 40.5706,
+          "accel_msd_ge5_count": 5,
+          "accel_msd_max": 11.25546,
+          "quiet": false
+        },
+        {
+          "second": 3,
+          "n": 10,
+          "accel_msd": 4.7090020699999995,
+          "gyro_msd": 1023.116798,
+          "accel_magnitude_mps2": 6.1439,
+          "gyro_magnitude_dps": 37.3915,
+          "accel_msd_ge5_count": 5,
+          "accel_msd_max": 11.34445,
+          "quiet": false
+        },
+        {
+          "second": 4,
+          "n": 10,
+          "accel_msd": 4.344673200000001,
+          "gyro_msd": 1179.5505449999996,
+          "accel_magnitude_mps2": 6.547700000000001,
+          "gyro_magnitude_dps": 39.9932,
+          "accel_msd_ge5_count": 5,
+          "accel_msd_max": 7.29914,
+          "quiet": false
+        },
+        {
+          "second": 5,
+          "n": 10,
+          "accel_msd": 3.32612643,
+          "gyro_msd": 754.5951990000001,
+          "accel_magnitude_mps2": 6.5369,
+          "gyro_magnitude_dps": 36.8808,
+          "accel_msd_ge5_count": 3,
+          "accel_msd_max": 8.003363,
+          "quiet": false
+        },
+        {
+          "second": 6,
+          "n": 10,
+          "accel_msd": 2.9573195869999997,
+          "gyro_msd": 930.7102289999999,
+          "accel_magnitude_mps2": 7.661800000000001,
+          "gyro_magnitude_dps": 36.1716,
+          "accel_msd_ge5_count": 2,
+          "accel_msd_max": 7.622529,
+          "quiet": false
+        },
+        {
+          "second": 7,
+          "n": 10,
+          "accel_msd": 4.2331669,
+          "gyro_msd": 970.1508799999999,
+          "accel_magnitude_mps2": 7.531000000000001,
+          "gyro_magnitude_dps": 37.7383,
+          "accel_msd_ge5_count": 3,
+          "accel_msd_max": 7.102023,
+          "quiet": false
+        },
+        {
+          "second": 8,
+          "n": 10,
+          "accel_msd": 4.254523321999999,
+          "gyro_msd": 1054.355412,
+          "accel_magnitude_mps2": 6.3021,
+          "gyro_magnitude_dps": 40.0133,
+          "accel_msd_ge5_count": 5,
+          "accel_msd_max": 10.10722,
+          "quiet": false
+        },
+        {
+          "second": 9,
+          "n": 10,
+          "accel_msd": 4.12547846,
+          "gyro_msd": 1112.907892,
+          "accel_magnitude_mps2": 5.8232,
+          "gyro_magnitude_dps": 40.223699999999994,
+          "accel_msd_ge5_count": 3,
+          "accel_msd_max": 8.102483,
+          "quiet": false
+        },
+        {
+          "second": 10,
+          "n": 10,
+          "accel_msd": 4.620025199999999,
+          "gyro_msd": 1225.38292,
+          "accel_magnitude_mps2": 5.8689,
+          "gyro_magnitude_dps": 39.9175,
+          "accel_msd_ge5_count": 5,
+          "accel_msd_max": 7.702992,
+          "quiet": false
+        },
+        {
+          "second": 11,
+          "n": 10,
+          "accel_msd": 5.88085083,
+          "gyro_msd": 1218.7273100000002,
+          "accel_magnitude_mps2": 5.050700000000001,
+          "gyro_magnitude_dps": 34.223,
+          "accel_msd_ge5_count": 5,
+          "accel_msd_max": 11.97469,
+          "quiet": false
+        },
+        {
+          "second": 12,
+          "n": 10,
+          "accel_msd": 4.08663843,
+          "gyro_msd": 1278.0577500000002,
+          "accel_magnitude_mps2": 6.9562,
+          "gyro_magnitude_dps": 44.003800000000005,
+          "accel_msd_ge5_count": 5,
+          "accel_msd_max": 8.433373,
+          "quiet": false
+        },
+        {
+          "second": 13,
+          "n": 10,
+          "accel_msd": 4.98206482,
+          "gyro_msd": 1394.126248,
+          "accel_magnitude_mps2": 4.4986999999999995,
+          "gyro_magnitude_dps": 44.571099999999994,
+          "accel_msd_ge5_count": 5,
+          "accel_msd_max": 9.730327,
+          "quiet": false
+        },
+        {
+          "second": 14,
+          "n": 10,
+          "accel_msd": 5.376953289999999,
+          "gyro_msd": 1236.45968,
+          "accel_magnitude_mps2": 5.786700000000001,
+          "gyro_magnitude_dps": 41.0915,
+          "accel_msd_ge5_count": 6,
+          "accel_msd_max": 9.508911,
+          "quiet": false
+        },
+        {
+          "second": 15,
+          "n": 9,
+          "accel_msd": 3.000644055555556,
+          "gyro_msd": 689.3751144444445,
+          "accel_magnitude_mps2": 6.488333333333333,
+          "gyro_magnitude_dps": 30.924999999999997,
+          "accel_msd_ge5_count": 3,
+          "accel_msd_max": 8.526915,
+          "quiet": false
+        },
+        {
+          "second": 16,
+          "n": 10,
+          "accel_msd": 0.10885529399999998,
+          "gyro_msd": 14.380739510000002,
+          "accel_magnitude_mps2": 9.3437,
+          "gyro_magnitude_dps": 18.486800000000002,
+          "accel_msd_ge5_count": 0,
+          "accel_msd_max": 0.4537963,
+          "quiet": false
+        },
+        {
+          "second": 17,
+          "n": 10,
+          "accel_msd": 0.032313249200000005,
+          "gyro_msd": 9.35169817,
+          "accel_magnitude_mps2": 9.7529,
+          "gyro_magnitude_dps": 12.054599999999999,
+          "accel_msd_ge5_count": 0,
+          "accel_msd_max": 0.1071018,
+          "quiet": false
+        },
+        {
+          "second": 18,
+          "n": 10,
+          "accel_msd": 0.007030064829999999,
+          "gyro_msd": 1.3004791,
+          "accel_magnitude_mps2": 9.8365,
+          "gyro_magnitude_dps": 3.2968,
+          "accel_msd_ge5_count": 0,
+          "accel_msd_max": 0.03952605,
+          "quiet": false
+        },
+        {
+          "second": 19,
+          "n": 10,
+          "accel_msd": 0.00104184782,
+          "gyro_msd": 0.47893355500000007,
+          "accel_magnitude_mps2": 9.845400000000001,
+          "gyro_magnitude_dps": 1.6168999999999998,
+          "accel_msd_ge5_count": 0,
+          "accel_msd_max": 0.001987529,
+          "quiet": true
+        },
+        {
+          "second": 20,
+          "n": 10,
+          "accel_msd": 0.0021542126500000004,
+          "gyro_msd": 0.29665823799999996,
+          "accel_magnitude_mps2": 9.861900000000002,
+          "gyro_magnitude_dps": 3.222,
+          "accel_msd_ge5_count": 0,
+          "accel_msd_max": 0.008847645,
+          "quiet": true
+        },
+        {
+          "second": 21,
+          "n": 10,
+          "accel_msd": 0.0018753219100000004,
+          "gyro_msd": 0.378899402,
+          "accel_magnitude_mps2": 9.8413,
+          "gyro_magnitude_dps": 3.0042999999999997,
+          "accel_msd_ge5_count": 0,
+          "accel_msd_max": 0.005930497,
+          "quiet": true
+        },
+        {
+          "second": 22,
+          "n": 10,
+          "accel_msd": 0.000150667815,
+          "gyro_msd": 0.044883565800000004,
+          "accel_magnitude_mps2": 9.814400000000001,
+          "gyro_magnitude_dps": 1.6328,
+          "accel_msd_ge5_count": 0,
+          "accel_msd_max": 0.0005770207,
+          "quiet": true
+        },
+        {
+          "second": 23,
+          "n": 10,
+          "accel_msd": 0.00011220010000000001,
+          "gyro_msd": 0.016929367,
+          "accel_magnitude_mps2": 9.8278,
+          "gyro_magnitude_dps": 1.2995,
+          "accel_msd_ge5_count": 0,
+          "accel_msd_max": 0.0001602834,
+          "quiet": true
+        },
+        {
+          "second": 24,
+          "n": 10,
+          "accel_msd": 0.000108992837,
+          "gyro_msd": 0.0234641317,
+          "accel_magnitude_mps2": 9.8523,
+          "gyro_magnitude_dps": 1.4148999999999998,
+          "accel_msd_ge5_count": 0,
+          "accel_msd_max": 0.0001923401,
+          "quiet": true
+        },
+        {
+          "second": 25,
+          "n": 10,
+          "accel_msd": 0.000217985915,
+          "gyro_msd": 0.10044229480000003,
+          "accel_magnitude_mps2": 9.841,
+          "gyro_magnitude_dps": 1.3216999999999999,
+          "accel_msd_ge5_count": 0,
+          "accel_msd_max": 0.0006090782,
+          "quiet": true
+        },
+        {
+          "second": 26,
+          "n": 10,
+          "accel_msd": 0.0007212769369999999,
+          "gyro_msd": 0.12189157399999999,
+          "accel_magnitude_mps2": 9.8167,
+          "gyro_magnitude_dps": 1.5463,
+          "accel_msd_ge5_count": 0,
+          "accel_msd_max": 0.001570782,
+          "quiet": true
+        },
+        {
+          "second": 27,
+          "n": 10,
+          "accel_msd": 0.062004251360000005,
+          "gyro_msd": 15.93428887,
+          "accel_magnitude_mps2": 9.890400000000001,
+          "gyro_magnitude_dps": 15.106100000000001,
+          "accel_msd_ge5_count": 0,
+          "accel_msd_max": 0.1503143,
+          "quiet": false
+        },
+        {
+          "second": 28,
+          "n": 10,
+          "accel_msd": 0.0066133200599999995,
+          "gyro_msd": 2.0445114300000005,
+          "accel_magnitude_mps2": 9.790799999999999,
+          "gyro_magnitude_dps": 7.7249,
+          "accel_msd_ge5_count": 0,
+          "accel_msd_max": 0.01965075,
+          "quiet": false
+        },
+        {
+          "second": 29,
+          "n": 10,
+          "accel_msd": 0.001317531867,
+          "gyro_msd": 0.31958934699999997,
+          "accel_magnitude_mps2": 9.826699999999999,
+          "gyro_magnitude_dps": 1.9781999999999997,
+          "accel_msd_ge5_count": 0,
+          "accel_msd_max": 0.003750632,
+          "quiet": true
+        }
+      ],
+      "continuous_quiet_tail_start_s": 29
+    },
+    {
+      "session_id": 51,
+      "notes": "Trial 47: Grandma runs at continuous pace then stops",
+      "activity": "run-then-stop",
+      "trial": 47,
+      "raw_n": 301,
+      "kept_n": 301,
+      "dropped_prefix_or_other_segments": 0,
+      "duration_s": 30.159,
+      "first_sample_number": 1719,
+      "last_sample_number": 2019,
+      "counter_discontinuities": 0,
+      "missing_counters": 0,
+      "nonpositive_time_deltas": 0,
+      "time_gaps_gt250ms": 0,
+      "dt_min_ms": 100.0,
+      "dt_median_ms": 101.0,
+      "dt_max_ms": 101.0,
+      "dt_p95_ms": 101.0,
+      "nullable_metric_counts": {
+        "board_time_ms": 0,
+        "accel_msd": 0,
+        "gyro_msd": 0,
+        "accel_magnitude_slope": 0,
+        "gyro_magnitude_slope": 0,
+        "accel_msd_slope": 0,
+        "gyro_msd_slope": 0
+      },
+      "accel_msd": {
+        "min": 0.0,
+        "median": 0.07421149,
+        "mean": 2.1907579296568107,
+        "p95": 9.248289,
+        "max": 13.49992
+      },
+      "gyro_msd": {
+        "min": 0.0006053322,
+        "median": 20.71938,
+        "mean": 521.2356963232837,
+        "p95": 2058.06,
+        "max": 2830.266
+      },
+      "accel_magnitude_mps2": {
+        "min": 2.243,
+        "median": 9.773,
+        "mean": 8.425358803986713,
+        "p95": 10.404,
+        "max": 12.378
+      },
+      "gyro_magnitude_dps": {
+        "min": 0.714,
+        "median": 9.709,
+        "mean": 21.878189368770762,
+        "p95": 65.724,
+        "max": 88.153
+      },
+      "accel5_count": 60,
+      "accel5_percent": 19.93355481727575,
+      "accel5_pulses": 53,
+      "accel5_longest_consecutive": 3,
+      "first_accel5_s": 0.804,
+      "last_accel5_s": 14.992,
+      "first_accel5_after_2s": 2.218,
+      "first3s": {
+        "n": 30,
+        "accel_msd": 3.7174605236666665,
+        "gyro_msd": 912.1930695666664,
+        "accel_magnitude_mps2": 7.679466666666666,
+        "gyro_magnitude_dps": 38.60900000000001,
+        "accel_msd_ge5_count": 12
+      },
+      "last3s": {
+        "n": 30,
+        "accel_msd": 0.001197855747,
+        "gyro_msd": 0.44595284323333334,
+        "accel_magnitude_mps2": 9.794366666666665,
+        "gyro_magnitude_dps": 2.737866666666667,
+        "accel_msd_ge5_count": 0
+      },
+      "last5s": {
+        "n": 50,
+        "accel_msd": 0.0008097553648,
+        "gyro_msd": 0.28206382712,
+        "accel_magnitude_mps2": 9.79438,
+        "gyro_magnitude_dps": 2.1487600000000002,
+        "accel_msd_ge5_count": 0
+      },
+      "first10s": {
+        "n": 100,
+        "accel_msd": 4.040534666300001,
+        "gyro_msd": 917.4465744699999,
+        "accel_magnitude_mps2": 7.325419999999999,
+        "gyro_magnitude_dps": 38.9229,
+        "accel_msd_ge5_count": 37
+      },
+      "seconds10to20": {
+        "n": 99,
+        "accel_msd": 2.578967384309899,
+        "gyro_msd": 657.8993212659091,
+        "accel_magnitude_mps2": 8.125393939393938,
+        "gyro_magnitude_dps": 25.3259898989899,
+        "accel_msd_ge5_count": 23
+      },
+      "last10s": {
+        "n": 100,
+        "accel_msd": 0.00046386235319999995,
+        "gyro_msd": 0.150876533134,
+        "accel_magnitude_mps2": 9.794889999999999,
+        "gyro_magnitude_dps": 1.8192599999999999,
+        "accel_msd_ge5_count": 0
+      },
+      "first_trigger": {
+        "time_s": 0.804,
+        "pre3s": {
+          "n": 8,
+          "accel_msd": 0.50715433875,
+          "gyro_msd": 207.161129625,
+          "accel_magnitude_mps2": 10.2405,
+          "gyro_magnitude_dps": 21.570999999999998,
+          "accel_msd_ge5_count": 0
+        },
+        "post5to8s": {
+          "n": 30,
+          "accel_msd": 4.122503796333333,
+          "gyro_msd": 888.4180723333333,
+          "accel_magnitude_mps2": 7.006833333333334,
+          "gyro_magnitude_dps": 37.2816,
+          "accel_msd_ge5_count": 11
+        }
+      },
+      "after_warmup_trigger": {
+        "time_s": 2.218,
+        "pre3s": {
+          "n": 22,
+          "accel_msd": 3.1800717322727268,
+          "gyro_msd": 855.8834403181819,
+          "accel_magnitude_mps2": 8.25359090909091,
+          "gyro_magnitude_dps": 37.827363636363636,
+          "accel_msd_ge5_count": 7
+        },
+        "post5to8s": {
+          "n": 30,
+          "accel_msd": 3.540276493,
+          "gyro_msd": 785.1649379999999,
+          "accel_magnitude_mps2": 7.962599999999999,
+          "gyro_magnitude_dps": 37.0685,
+          "accel_msd_ge5_count": 8
+        }
+      },
+      "one_second_bins": [
+        {
+          "second": 0,
+          "n": 10,
+          "accel_msd": 1.6227242710000003,
+          "gyro_msd": 324.4353837,
+          "accel_magnitude_mps2": 9.4703,
+          "gyro_magnitude_dps": 30.0491,
+          "accel_msd_ge5_count": 2,
+          "accel_msd_max": 6.564398,
+          "quiet": false
+        },
+        {
+          "second": 1,
+          "n": 10,
+          "accel_msd": 4.73023324,
+          "gyro_msd": 1301.254635,
+          "accel_magnitude_mps2": 6.9137,
+          "gyro_magnitude_dps": 46.0122,
+          "accel_msd_ge5_count": 5,
+          "accel_msd_max": 8.821678,
+          "quiet": false
+        },
+        {
+          "second": 2,
+          "n": 10,
+          "accel_msd": 4.79942406,
+          "gyro_msd": 1110.88919,
+          "accel_magnitude_mps2": 6.6544,
+          "gyro_magnitude_dps": 39.7657,
+          "accel_msd_ge5_count": 5,
+          "accel_msd_max": 10.2432,
+          "quiet": false
+        },
+        {
+          "second": 3,
+          "n": 10,
+          "accel_msd": 4.50751852,
+          "gyro_msd": 982.802498,
+          "accel_magnitude_mps2": 6.727499999999999,
+          "gyro_magnitude_dps": 39.1943,
+          "accel_msd_ge5_count": 4,
+          "accel_msd_max": 9.02902,
+          "quiet": false
+        },
+        {
+          "second": 4,
+          "n": 10,
+          "accel_msd": 4.7966609579999995,
+          "gyro_msd": 1079.176872,
+          "accel_magnitude_mps2": 6.649299999999999,
+          "gyro_magnitude_dps": 42.653299999999994,
+          "accel_msd_ge5_count": 5,
+          "accel_msd_max": 9.920422,
+          "quiet": false
+        },
+        {
+          "second": 5,
+          "n": 10,
+          "accel_msd": 4.309330125,
+          "gyro_msd": 993.470002,
+          "accel_magnitude_mps2": 6.2726,
+          "gyro_magnitude_dps": 43.858700000000006,
+          "accel_msd_ge5_count": 3,
+          "accel_msd_max": 11.36128,
+          "quiet": false
+        },
+        {
+          "second": 6,
+          "n": 10,
+          "accel_msd": 3.9902951100000004,
+          "gyro_msd": 979.0725300000001,
+          "accel_magnitude_mps2": 6.7995,
+          "gyro_magnitude_dps": 36.9689,
+          "accel_msd_ge5_count": 4,
+          "accel_msd_max": 9.752189,
+          "quiet": false
+        },
+        {
+          "second": 7,
+          "n": 10,
+          "accel_msd": 5.409503880000001,
+          "gyro_msd": 977.0837300000001,
+          "accel_magnitude_mps2": 6.9271,
+          "gyro_magnitude_dps": 42.212599999999995,
+          "accel_msd_ge5_count": 5,
+          "accel_msd_max": 13.49992,
+          "quiet": false
+        },
+        {
+          "second": 8,
+          "n": 10,
+          "accel_msd": 3.079443199,
+          "gyro_msd": 764.3166469999999,
+          "accel_magnitude_mps2": 8.0838,
+          "gyro_magnitude_dps": 31.070200000000007,
+          "accel_msd_ge5_count": 3,
+          "accel_msd_max": 9.248289,
+          "quiet": false
+        },
+        {
+          "second": 9,
+          "n": 10,
+          "accel_msd": 3.1602133,
+          "gyro_msd": 661.964257,
+          "accel_magnitude_mps2": 8.756,
+          "gyro_magnitude_dps": 37.444,
+          "accel_msd_ge5_count": 1,
+          "accel_msd_max": 5.366884,
+          "quiet": false
+        },
+        {
+          "second": 10,
+          "n": 10,
+          "accel_msd": 3.41054447,
+          "gyro_msd": 811.41364,
+          "accel_magnitude_mps2": 9.258399999999998,
+          "gyro_magnitude_dps": 33.4777,
+          "accel_msd_ge5_count": 3,
+          "accel_msd_max": 7.732033,
+          "quiet": false
+        },
+        {
+          "second": 11,
+          "n": 10,
+          "accel_msd": 5.304620691,
+          "gyro_msd": 1173.97769,
+          "accel_magnitude_mps2": 6.922399999999999,
+          "gyro_magnitude_dps": 43.934200000000004,
+          "accel_msd_ge5_count": 6,
+          "accel_msd_max": 10.24667,
+          "quiet": false
+        },
+        {
+          "second": 12,
+          "n": 10,
+          "accel_msd": 5.5363495,
+          "gyro_msd": 1467.10729,
+          "accel_magnitude_mps2": 6.6960999999999995,
+          "gyro_magnitude_dps": 41.021100000000004,
+          "accel_msd_ge5_count": 5,
+          "accel_msd_max": 10.52191,
+          "quiet": false
+        },
+        {
+          "second": 13,
+          "n": 10,
+          "accel_msd": 6.113194769999999,
+          "gyro_msd": 1309.3858599999999,
+          "accel_magnitude_mps2": 4.8988,
+          "gyro_magnitude_dps": 39.3937,
+          "accel_msd_ge5_count": 5,
+          "accel_msd_max": 12.83839,
+          "quiet": false
+        },
+        {
+          "second": 14,
+          "n": 10,
+          "accel_msd": 4.8669519999999995,
+          "gyro_msd": 1697.80216,
+          "accel_magnitude_mps2": 6.4505,
+          "gyro_magnitude_dps": 48.3076,
+          "accel_msd_ge5_count": 4,
+          "accel_msd_max": 7.055604,
+          "quiet": false
+        },
+        {
+          "second": 15,
+          "n": 10,
+          "accel_msd": 0.26737287300000007,
+          "gyro_msd": 37.6102817,
+          "accel_magnitude_mps2": 8.1605,
+          "gyro_magnitude_dps": 25.8598,
+          "accel_msd_ge5_count": 0,
+          "accel_msd_max": 0.9700062,
+          "quiet": false
+        },
+        {
+          "second": 16,
+          "n": 9,
+          "accel_msd": 0.0037791368888888885,
+          "gyro_msd": 1.531811697777778,
+          "accel_magnitude_mps2": 9.665666666666667,
+          "gyro_magnitude_dps": 4.7829999999999995,
+          "accel_msd_ge5_count": 0,
+          "accel_msd_max": 0.0125983,
+          "quiet": false
+        },
+        {
+          "second": 17,
+          "n": 10,
+          "accel_msd": 0.0006475456300000001,
+          "gyro_msd": 0.26417564,
+          "accel_magnitude_mps2": 9.7763,
+          "gyro_magnitude_dps": 2.5752999999999995,
+          "accel_msd_ge5_count": 0,
+          "accel_msd_max": 0.001442551,
+          "quiet": true
+        },
+        {
+          "second": 18,
+          "n": 10,
+          "accel_msd": 0.028302938490000002,
+          "gyro_msd": 14.147024199999999,
+          "accel_magnitude_mps2": 9.772,
+          "gyro_magnitude_dps": 8.9366,
+          "accel_msd_ge5_count": 0,
+          "accel_msd_max": 0.0621581,
+          "quiet": false
+        },
+        {
+          "second": 19,
+          "n": 10,
+          "accel_msd": 0.000391093348,
+          "gyro_msd": 0.11652846449999998,
+          "accel_magnitude_mps2": 9.807300000000001,
+          "gyro_magnitude_dps": 2.9166000000000003,
+          "accel_msd_ge5_count": 0,
+          "accel_msd_max": 0.001121986,
+          "quiet": true
+        },
+        {
+          "second": 20,
+          "n": 10,
+          "accel_msd": 0.000166695087,
+          "gyro_msd": 0.03943776489999999,
+          "accel_magnitude_mps2": 9.8001,
+          "gyro_magnitude_dps": 1.8943999999999999,
+          "accel_msd_ge5_count": 0,
+          "accel_msd_max": 0.0003205679,
+          "quiet": true
+        },
+        {
+          "second": 21,
+          "n": 10,
+          "accel_msd": 0.00014104930000000002,
+          "gyro_msd": 0.0255328646,
+          "accel_magnitude_mps2": 9.8047,
+          "gyro_magnitude_dps": 1.2701,
+          "accel_msd_ge5_count": 0,
+          "accel_msd_max": 0.0003205678,
+          "quiet": true
+        },
+        {
+          "second": 22,
+          "n": 10,
+          "accel_msd": 0.00013463824100000003,
+          "gyro_msd": 0.013640601000000002,
+          "accel_magnitude_mps2": 9.802900000000001,
+          "gyro_magnitude_dps": 1.4058999999999997,
+          "accel_msd_ge5_count": 0,
+          "accel_msd_max": 0.0004167373,
+          "quiet": true
+        },
+        {
+          "second": 23,
+          "n": 10,
+          "accel_msd": 9.937838600000001e-05,
+          "gyro_msd": 0.017250167419999997,
+          "accel_magnitude_mps2": 9.7808,
+          "gyro_magnitude_dps": 1.2325,
+          "accel_msd_ge5_count": 0,
+          "accel_msd_max": 0.000288523,
+          "quiet": true
+        },
+        {
+          "second": 24,
+          "n": 10,
+          "accel_msd": 6.7320366e-05,
+          "gyro_msd": 0.011334632820000001,
+          "accel_magnitude_mps2": 9.788199999999998,
+          "gyro_magnitude_dps": 1.7023999999999997,
+          "accel_msd_ge5_count": 0,
+          "accel_msd_max": 0.0001923467,
+          "quiet": true
+        },
+        {
+          "second": 25,
+          "n": 10,
+          "accel_msd": 0.000330188253,
+          "gyro_msd": 0.05886010309999999,
+          "accel_magnitude_mps2": 9.7933,
+          "gyro_magnitude_dps": 1.2437,
+          "accel_msd_ge5_count": 0,
+          "accel_msd_max": 0.001186101,
+          "quiet": true
+        },
+        {
+          "second": 26,
+          "n": 10,
+          "accel_msd": 0.00012181576999999998,
+          "gyro_msd": 0.0169043338,
+          "accel_magnitude_mps2": 9.7965,
+          "gyro_magnitude_dps": 1.2869,
+          "accel_msd_ge5_count": 0,
+          "accel_msd_max": 0.0003205668,
+          "quiet": true
+        },
+        {
+          "second": 27,
+          "n": 10,
+          "accel_msd": 0.000253248254,
+          "gyro_msd": 0.06210203649999999,
+          "accel_magnitude_mps2": 9.7879,
+          "gyro_magnitude_dps": 1.5084,
+          "accel_msd_ge5_count": 0,
+          "accel_msd_max": 0.0009296454,
+          "quiet": true
+        },
+        {
+          "second": 28,
+          "n": 10,
+          "accel_msd": 0.0006443411349999999,
+          "gyro_msd": 0.27578197419999995,
+          "accel_magnitude_mps2": 9.785300000000001,
+          "gyro_magnitude_dps": 2.5124,
+          "accel_msd_ge5_count": 0,
+          "accel_msd_max": 0.002211924,
+          "quiet": true
+        },
+        {
+          "second": 29,
+          "n": 10,
+          "accel_msd": 0.00191379131,
+          "gyro_msd": 0.74340981,
+          "accel_magnitude_mps2": 9.8022,
+          "gyro_magnitude_dps": 3.3987000000000003,
+          "accel_msd_ge5_count": 0,
+          "accel_msd_max": 0.008014195,
+          "quiet": true
+        }
+      ],
+      "continuous_quiet_tail_start_s": 19
+    },
+    {
+      "session_id": 52,
+      "notes": "Trial 48: Grandma runs at continuous pace then stops",
+      "activity": "run-then-stop",
+      "trial": 48,
+      "raw_n": 300,
+      "kept_n": 300,
+      "dropped_prefix_or_other_segments": 0,
+      "duration_s": 30.022,
+      "first_sample_number": 2078,
+      "last_sample_number": 2377,
+      "counter_discontinuities": 0,
+      "missing_counters": 0,
+      "nonpositive_time_deltas": 0,
+      "time_gaps_gt250ms": 0,
+      "dt_min_ms": 100.0,
+      "dt_median_ms": 100.0,
+      "dt_max_ms": 101.0,
+      "dt_p95_ms": 101.0,
+      "nullable_metric_counts": {
+        "board_time_ms": 0,
+        "accel_msd": 0,
+        "gyro_msd": 0,
+        "accel_magnitude_slope": 0,
+        "gyro_magnitude_slope": 0,
+        "accel_msd_slope": 0,
+        "gyro_msd_slope": 0
+      },
+      "accel_msd": {
+        "min": 0.0,
+        "median": 0.003125534,
+        "mean": 2.4092501298222664,
+        "p95": 10.906796000000002,
+        "max": 17.94558
+      },
+      "gyro_msd": {
+        "min": 0.0006016657,
+        "median": 0.8710976500000001,
+        "mean": 530.6914878741377,
+        "p95": 2239.3931500000003,
+        "max": 3393.398
+      },
+      "accel_magnitude_mps2": {
+        "min": 0.739,
+        "median": 9.7035,
+        "mean": 7.756199999999999,
+        "p95": 9.7788,
+        "max": 12.322
+      },
+      "gyro_magnitude_dps": {
+        "min": 0.713,
+        "median": 4.679,
+        "mean": 19.694243333333333,
+        "p95": 66.49055000000001,
+        "max": 98.78
+      },
+      "accel5_count": 65,
+      "accel5_percent": 21.666666666666668,
+      "accel5_pulses": 48,
+      "accel5_longest_consecutive": 4,
+      "first_accel5_s": 0.702,
+      "last_accel5_s": 12.889,
+      "first_accel5_after_2s": 2.113,
+      "first3s": {
+        "n": 30,
+        "accel_msd": 5.517972992833333,
+        "gyro_msd": 1251.5381833333333,
+        "accel_magnitude_mps2": 6.469633333333333,
+        "gyro_magnitude_dps": 37.22936666666667,
+        "accel_msd_ge5_count": 15
+      },
+      "last3s": {
+        "n": 30,
+        "accel_msd": 0.00017310644999999998,
+        "gyro_msd": 0.026205889343333334,
+        "accel_magnitude_mps2": 9.733733333333333,
+        "gyro_magnitude_dps": 1.9168333333333332,
+        "accel_msd_ge5_count": 0
+      },
+      "last5s": {
+        "n": 50,
+        "accel_msd": 0.000272482748,
+        "gyro_msd": 0.029715219525999998,
+        "accel_magnitude_mps2": 9.7323,
+        "gyro_magnitude_dps": 1.64124,
+        "accel_msd_ge5_count": 0
+      },
+      "first10s": {
+        "n": 100,
+        "accel_msd": 5.790502879650001,
+        "gyro_msd": 1276.0826535400004,
+        "accel_magnitude_mps2": 5.3037600000000005,
+        "gyro_magnitude_dps": 40.57484,
+        "accel_msd_ge5_count": 52
+      },
+      "seconds10to20": {
+        "n": 99,
+        "accel_msd": 1.4515546876186867,
+        "gyro_msd": 319.1576076131514,
+        "accel_magnitude_mps2": 8.215454545454547,
+        "gyro_magnitude_dps": 16.92187878787879,
+        "accel_msd_ge5_count": 13
+      },
+      "last10s": {
+        "n": 100,
+        "accel_msd": 0.00020548397230000002,
+        "gyro_msd": 0.025037888692999992,
+        "accel_magnitude_mps2": 9.733929999999999,
+        "gyro_magnitude_dps": 1.73757,
+        "accel_msd_ge5_count": 0
+      },
+      "first_trigger": {
+        "time_s": 0.702,
+        "pre3s": {
+          "n": 7,
+          "accel_msd": 0.5744990692857144,
+          "gyro_msd": 159.52912857142857,
+          "accel_magnitude_mps2": 10.40242857142857,
+          "gyro_magnitude_dps": 14.727285714285715,
+          "accel_msd_ge5_count": 0
+        },
+        "post5to8s": {
+          "n": 30,
+          "accel_msd": 6.277323603333333,
+          "gyro_msd": 1248.4640661333335,
+          "accel_magnitude_mps2": 4.649066666666667,
+          "gyro_magnitude_dps": 42.78443333333334,
+          "accel_msd_ge5_count": 15
+        }
+      },
+      "after_warmup_trigger": {
+        "time_s": 2.113,
+        "pre3s": {
+          "n": 21,
+          "accel_msd": 4.674896689761905,
+          "gyro_msd": 1140.1419428571428,
+          "accel_magnitude_mps2": 6.982285714285715,
+          "gyro_magnitude_dps": 35.40938095238096,
+          "accel_msd_ge5_count": 9
+        },
+        "post5to8s": {
+          "n": 30,
+          "accel_msd": 5.4864323566666675,
+          "gyro_msd": 1143.0205824666666,
+          "accel_magnitude_mps2": 5.019566666666666,
+          "gyro_magnitude_dps": 39.67943333333333,
+          "accel_msd_ge5_count": 14
+        }
+      },
+      "one_second_bins": [
+        {
+          "second": 0,
+          "n": 10,
+          "accel_msd": 3.2084042485000004,
+          "gyro_msd": 630.3731,
+          "accel_magnitude_mps2": 8.9023,
+          "gyro_magnitude_dps": 30.580599999999997,
+          "accel_msd_ge5_count": 3,
+          "accel_msd_max": 11.06155,
+          "quiet": false
+        },
+        {
+          "second": 1,
+          "n": 10,
+          "accel_msd": 6.2477718,
+          "gyro_msd": 1606.7916799999998,
+          "accel_magnitude_mps2": 5.4979,
+          "gyro_magnitude_dps": 42.4457,
+          "accel_msd_ge5_count": 6,
+          "accel_msd_max": 11.96933,
+          "quiet": false
+        },
+        {
+          "second": 2,
+          "n": 10,
+          "accel_msd": 7.09774293,
+          "gyro_msd": 1517.4497699999997,
+          "accel_magnitude_mps2": 5.008699999999999,
+          "gyro_magnitude_dps": 38.6618,
+          "accel_msd_ge5_count": 6,
+          "accel_msd_max": 15.49609,
+          "quiet": false
+        },
+        {
+          "second": 3,
+          "n": 10,
+          "accel_msd": 6.057986189999999,
+          "gyro_msd": 1263.7303530000002,
+          "accel_magnitude_mps2": 4.830299999999999,
+          "gyro_magnitude_dps": 45.732000000000006,
+          "accel_msd_ge5_count": 5,
+          "accel_msd_max": 17.94558,
+          "quiet": false
+        },
+        {
+          "second": 4,
+          "n": 10,
+          "accel_msd": 6.073043618,
+          "gyro_msd": 1456.6345500000002,
+          "accel_magnitude_mps2": 4.4133000000000004,
+          "gyro_magnitude_dps": 43.09590000000001,
+          "accel_msd_ge5_count": 6,
+          "accel_msd_max": 10.99849,
+          "quiet": false
+        },
+        {
+          "second": 5,
+          "n": 10,
+          "accel_msd": 5.071548099999999,
+          "gyro_msd": 1599.9206,
+          "accel_magnitude_mps2": 4.831,
+          "gyro_magnitude_dps": 43.2678,
+          "accel_msd_ge5_count": 5,
+          "accel_msd_max": 9.57203,
+          "quiet": false
+        },
+        {
+          "second": 6,
+          "n": 10,
+          "accel_msd": 6.27511056,
+          "gyro_msd": 1405.8317849999999,
+          "accel_magnitude_mps2": 4.527500000000001,
+          "gyro_magnitude_dps": 43.20719999999999,
+          "accel_msd_ge5_count": 6,
+          "accel_msd_max": 17.64258,
+          "quiet": false
+        },
+        {
+          "second": 7,
+          "n": 10,
+          "accel_msd": 7.13550475,
+          "gyro_msd": 1120.5816634,
+          "accel_magnitude_mps2": 4.6881,
+          "gyro_magnitude_dps": 39.688,
+          "accel_msd_ge5_count": 5,
+          "accel_msd_max": 15.74277,
+          "quiet": false
+        },
+        {
+          "second": 8,
+          "n": 10,
+          "accel_msd": 5.5740549,
+          "gyro_msd": 1061.94159,
+          "accel_magnitude_mps2": 4.7078,
+          "gyro_magnitude_dps": 36.4678,
+          "accel_msd_ge5_count": 5,
+          "accel_msd_max": 10.26773,
+          "quiet": false
+        },
+        {
+          "second": 9,
+          "n": 10,
+          "accel_msd": 5.1638617,
+          "gyro_msd": 1097.5714440000002,
+          "accel_magnitude_mps2": 5.6307,
+          "gyro_magnitude_dps": 42.6016,
+          "accel_msd_ge5_count": 5,
+          "accel_msd_max": 10.90197,
+          "quiet": false
+        },
+        {
+          "second": 10,
+          "n": 10,
+          "accel_msd": 3.9788508499999997,
+          "gyro_msd": 799.26947,
+          "accel_magnitude_mps2": 4.8818,
+          "gyro_magnitude_dps": 38.2432,
+          "accel_msd_ge5_count": 5,
+          "accel_msd_max": 8.379807,
+          "quiet": false
+        },
+        {
+          "second": 11,
+          "n": 10,
+          "accel_msd": 4.5685867600000005,
+          "gyro_msd": 1141.56494,
+          "accel_magnitude_mps2": 5.1045,
+          "gyro_magnitude_dps": 37.3179,
+          "accel_msd_ge5_count": 4,
+          "accel_msd_max": 9.409663,
+          "quiet": false
+        },
+        {
+          "second": 12,
+          "n": 10,
+          "accel_msd": 5.498712190000001,
+          "gyro_msd": 1175.494261,
+          "accel_magnitude_mps2": 5.250300000000001,
+          "gyro_magnitude_dps": 44.6199,
+          "accel_msd_ge5_count": 4,
+          "accel_msd_max": 13.77468,
+          "quiet": false
+        },
+        {
+          "second": 13,
+          "n": 10,
+          "accel_msd": 0.30114469900000007,
+          "gyro_msd": 37.8905297,
+          "accel_magnitude_mps2": 8.4849,
+          "gyro_magnitude_dps": 22.762600000000003,
+          "accel_msd_ge5_count": 0,
+          "accel_msd_max": 1.032549,
+          "quiet": false
+        },
+        {
+          "second": 14,
+          "n": 9,
+          "accel_msd": 0.022087121,
+          "gyro_msd": 4.968138255555555,
+          "accel_magnitude_mps2": 9.983666666666666,
+          "gyro_magnitude_dps": 15.651333333333334,
+          "accel_msd_ge5_count": 0,
+          "accel_msd_max": 0.1011389,
+          "quiet": false
+        },
+        {
+          "second": 15,
+          "n": 10,
+          "accel_msd": 0.001785563213,
+          "gyro_msd": 0.7065131700999999,
+          "accel_magnitude_mps2": 9.7434,
+          "gyro_magnitude_dps": 2.7571,
+          "accel_msd_ge5_count": 0,
+          "accel_msd_max": 0.006988362,
+          "quiet": true
+        },
+        {
+          "second": 16,
+          "n": 10,
+          "accel_msd": 0.00034941852499999996,
+          "gyro_msd": 0.0469920646,
+          "accel_magnitude_mps2": 9.702200000000001,
+          "gyro_magnitude_dps": 1.3790999999999998,
+          "accel_msd_ge5_count": 0,
+          "accel_msd_max": 0.001057871,
+          "quiet": true
+        },
+        {
+          "second": 17,
+          "n": 10,
+          "accel_msd": 0.000301333282,
+          "gyro_msd": 0.08589960199999999,
+          "accel_magnitude_mps2": 9.7066,
+          "gyro_magnitude_dps": 1.7343,
+          "accel_msd_ge5_count": 0,
+          "accel_msd_max": 0.0006731904,
+          "quiet": true
+        },
+        {
+          "second": 18,
+          "n": 10,
+          "accel_msd": 0.000394297905,
+          "gyro_msd": 0.09350250950000001,
+          "accel_magnitude_mps2": 9.7253,
+          "gyro_magnitude_dps": 1.9751999999999998,
+          "accel_msd_ge5_count": 0,
+          "accel_msd_max": 0.0009617005,
+          "quiet": true
+        },
+        {
+          "second": 19,
+          "n": 10,
+          "accel_msd": 0.00038788660000000003,
+          "gyro_msd": 0.036882894,
+          "accel_magnitude_mps2": 9.748700000000001,
+          "gyro_magnitude_dps": 2.6511,
+          "accel_msd_ge5_count": 0,
+          "accel_msd_max": 0.001442551,
+          "quiet": true
+        },
+        {
+          "second": 20,
+          "n": 10,
+          "accel_msd": 0.000169900424,
+          "gyro_msd": 0.0166514992,
+          "accel_magnitude_mps2": 9.7312,
+          "gyro_magnitude_dps": 1.5846,
+          "accel_msd_ge5_count": 0,
+          "accel_msd_max": 0.0004487936,
+          "quiet": true
+        },
+        {
+          "second": 21,
+          "n": 10,
+          "accel_msd": 8.014170199999999e-05,
+          "gyro_msd": 0.0245589617,
+          "accel_magnitude_mps2": 9.718,
+          "gyro_magnitude_dps": 1.6977,
+          "accel_msd_ge5_count": 0,
+          "accel_msd_max": 0.0001923401,
+          "quiet": true
+        },
+        {
+          "second": 22,
+          "n": 10,
+          "accel_msd": 0.000141049632,
+          "gyro_msd": 0.0108617319,
+          "accel_magnitude_mps2": 9.7167,
+          "gyro_magnitude_dps": 1.9289999999999998,
+          "accel_msd_ge5_count": 0,
+          "accel_msd_max": 0.0003205668,
+          "quiet": true
+        },
+        {
+          "second": 23,
+          "n": 10,
+          "accel_msd": 0.00019234073,
+          "gyro_msd": 0.0263135319,
+          "accel_magnitude_mps2": 9.760000000000002,
+          "gyro_magnitude_dps": 2.2317,
+          "accel_msd_ge5_count": 0,
+          "accel_msd_max": 0.0004487936,
+          "quiet": true
+        },
+        {
+          "second": 24,
+          "n": 10,
+          "accel_msd": 0.000134638847,
+          "gyro_msd": 0.030417731600000004,
+          "accel_magnitude_mps2": 9.7516,
+          "gyro_magnitude_dps": 1.7469000000000001,
+          "accel_msd_ge5_count": 0,
+          "accel_msd_max": 0.0004487959,
+          "quiet": true
+        },
+        {
+          "second": 25,
+          "n": 10,
+          "accel_msd": 0.00011861035000000002,
+          "gyro_msd": 0.0237494329,
+          "accel_magnitude_mps2": 9.745299999999999,
+          "gyro_magnitude_dps": 1.4892999999999998,
+          "accel_msd_ge5_count": 0,
+          "accel_msd_max": 0.0005449667,
+          "quiet": true
+        },
+        {
+          "second": 26,
+          "n": 10,
+          "accel_msd": 0.000702044208,
+          "gyro_msd": 0.043558629700000004,
+          "accel_magnitude_mps2": 9.7214,
+          "gyro_magnitude_dps": 1.0286,
+          "accel_msd_ge5_count": 0,
+          "accel_msd_max": 0.002981286,
+          "quiet": true
+        },
+        {
+          "second": 27,
+          "n": 10,
+          "accel_msd": 0.00016028356099999998,
+          "gyro_msd": 0.030904533500000005,
+          "accel_magnitude_mps2": 9.724299999999998,
+          "gyro_magnitude_dps": 1.5317,
+          "accel_msd_ge5_count": 0,
+          "accel_msd_max": 0.0003526235,
+          "quiet": true
+        },
+        {
+          "second": 28,
+          "n": 10,
+          "accel_msd": 0.000137844197,
+          "gyro_msd": 0.01644330176,
+          "accel_magnitude_mps2": 9.7409,
+          "gyro_magnitude_dps": 2.0663,
+          "accel_msd_ge5_count": 0,
+          "accel_msd_max": 0.0003205668,
+          "quiet": true
+        },
+        {
+          "second": 29,
+          "n": 10,
+          "accel_msd": 0.000246837092,
+          "gyro_msd": 0.03361243297,
+          "accel_magnitude_mps2": 9.732400000000002,
+          "gyro_magnitude_dps": 2.1427,
+          "accel_msd_ge5_count": 0,
+          "accel_msd_max": 0.0006731935,
+          "quiet": true
+        }
+      ],
+      "continuous_quiet_tail_start_s": 15
+    },
+    {
+      "session_id": 54,
+      "notes": "Trial 49: Grandma runs at continuous pace then stops",
+      "activity": "run-then-stop",
+      "trial": 49,
+      "raw_n": 300,
+      "kept_n": 300,
+      "dropped_prefix_or_other_segments": 0,
+      "duration_s": 30.043,
+      "first_sample_number": 1047,
+      "last_sample_number": 1346,
+      "counter_discontinuities": 0,
+      "missing_counters": 0,
+      "nonpositive_time_deltas": 0,
+      "time_gaps_gt250ms": 0,
+      "dt_min_ms": 100.0,
+      "dt_median_ms": 100.0,
+      "dt_max_ms": 101.0,
+      "dt_p95_ms": 101.0,
+      "nullable_metric_counts": {
+        "board_time_ms": 0,
+        "accel_msd": 0,
+        "gyro_msd": 0,
+        "accel_magnitude_slope": 0,
+        "gyro_magnitude_slope": 0,
+        "accel_msd_slope": 0,
+        "gyro_msd_slope": 0
+      },
+      "accel_msd": {
+        "min": 0.0,
+        "median": 0.0019715055,
+        "mean": 1.5260464053290332,
+        "p95": 7.4049034,
+        "max": 19.10748
+      },
+      "gyro_msd": {
+        "min": 0.0006506664,
+        "median": 1.032147,
+        "mean": 426.97799821990463,
+        "p95": 2090.82745,
+        "max": 4318.402
+      },
+      "accel_magnitude_mps2": {
+        "min": 1.064,
+        "median": 9.775,
+        "mean": 8.493123333333333,
+        "p95": 9.8925,
+        "max": 12.814
+      },
+      "gyro_magnitude_dps": {
+        "min": 0.837,
+        "median": 3.857,
+        "mean": 19.295746666666666,
+        "p95": 65.71679999999999,
+        "max": 85.023
+      },
+      "accel5_count": 37,
+      "accel5_percent": 12.333333333333334,
+      "accel5_pulses": 37,
+      "accel5_longest_consecutive": 1,
+      "first_accel5_s": 2.119,
+      "last_accel5_s": 12.488,
+      "first_accel5_after_2s": 2.119,
+      "first3s": {
+        "n": 30,
+        "accel_msd": 2.033251221,
+        "gyro_msd": 517.0025473666667,
+        "accel_magnitude_mps2": 8.764133333333332,
+        "gyro_magnitude_dps": 38.072300000000006,
+        "accel_msd_ge5_count": 3
+      },
+      "last3s": {
+        "n": 30,
+        "accel_msd": 4.7016505e-05,
+        "gyro_msd": 0.007718944046666667,
+        "accel_magnitude_mps2": 9.783,
+        "gyro_magnitude_dps": 1.578166666666667,
+        "accel_msd_ge5_count": 0
+      },
+      "last5s": {
+        "n": 50,
+        "accel_msd": 9.80935872e-05,
+        "gyro_msd": 0.013473867308000001,
+        "accel_magnitude_mps2": 9.781460000000001,
+        "gyro_magnitude_dps": 1.6831200000000002,
+        "accel_msd_ge5_count": 0
+      },
+      "first10s": {
+        "n": 100,
+        "accel_msd": 3.3005048774,
+        "gyro_msd": 935.2014142,
+        "accel_magnitude_mps2": 7.12389,
+        "gyro_magnitude_dps": 40.46776000000001,
+        "accel_msd_ge5_count": 27
+      },
+      "seconds10to20": {
+        "n": 99,
+        "accel_msd": 1.2902926718959595,
+        "gyro_msd": 349.1468821233636,
+        "accel_magnitude_mps2": 8.56110101010101,
+        "gyro_magnitude_dps": 15.868848484848485,
+        "accel_msd_ge5_count": 10
+      },
+      "last10s": {
+        "n": 100,
+        "accel_msd": 0.00024459341009999995,
+        "gyro_msd": 0.076333757484,
+        "accel_magnitude_mps2": 9.782029999999997,
+        "gyro_magnitude_dps": 1.6911299999999998,
+        "accel_msd_ge5_count": 0
+      },
+      "first_trigger": {
+        "time_s": 2.119,
+        "pre3s": {
+          "n": 21,
+          "accel_msd": 1.5208062357142855,
+          "gyro_msd": 442.1258443333333,
+          "accel_magnitude_mps2": 9.373714285714286,
+          "gyro_magnitude_dps": 37.327952380952375,
+          "accel_msd_ge5_count": 0
+        },
+        "post5to8s": {
+          "n": 30,
+          "accel_msd": 4.19141602,
+          "gyro_msd": 1184.3040443333334,
+          "accel_magnitude_mps2": 6.099466666666667,
+          "gyro_magnitude_dps": 43.944399999999995,
+          "accel_msd_ge5_count": 11
+        }
+      },
+      "after_warmup_trigger": {
+        "time_s": 2.119,
+        "pre3s": {
+          "n": 21,
+          "accel_msd": 1.5208062357142855,
+          "gyro_msd": 442.1258443333333,
+          "accel_magnitude_mps2": 9.373714285714286,
+          "gyro_magnitude_dps": 37.327952380952375,
+          "accel_msd_ge5_count": 0
+        },
+        "post5to8s": {
+          "n": 30,
+          "accel_msd": 4.19141602,
+          "gyro_msd": 1184.3040443333334,
+          "accel_magnitude_mps2": 6.099466666666667,
+          "gyro_magnitude_dps": 43.944399999999995,
+          "accel_msd_ge5_count": 11
+        }
+      },
+      "one_second_bins": [
+        {
+          "second": 0,
+          "n": 10,
+          "accel_msd": 0.569633265,
+          "gyro_msd": 117.89915910000002,
+          "accel_magnitude_mps2": 9.9405,
+          "gyro_magnitude_dps": 34.429700000000004,
+          "accel_msd_ge5_count": 0,
+          "accel_msd_max": 2.633113,
+          "quiet": false
+        },
+        {
+          "second": 1,
+          "n": 10,
+          "accel_msd": 2.44593303,
+          "gyro_msd": 724.962634,
+          "accel_magnitude_mps2": 8.8582,
+          "gyro_magnitude_dps": 38.2584,
+          "accel_msd_ge5_count": 0,
+          "accel_msd_max": 4.852917,
+          "quiet": false
+        },
+        {
+          "second": 2,
+          "n": 10,
+          "accel_msd": 3.084187368,
+          "gyro_msd": 708.1458490000001,
+          "accel_magnitude_mps2": 7.4937,
+          "gyro_magnitude_dps": 41.528800000000004,
+          "accel_msd_ge5_count": 3,
+          "accel_msd_max": 7.274392,
+          "quiet": false
+        },
+        {
+          "second": 3,
+          "n": 10,
+          "accel_msd": 3.3443697490000006,
+          "gyro_msd": 944.5883319000001,
+          "accel_magnitude_mps2": 7.491999999999999,
+          "gyro_magnitude_dps": 41.5344,
+          "accel_msd_ge5_count": 3,
+          "accel_msd_max": 7.683307,
+          "quiet": false
+        },
+        {
+          "second": 4,
+          "n": 10,
+          "accel_msd": 4.0790185899999996,
+          "gyro_msd": 1261.122555,
+          "accel_magnitude_mps2": 5.8921,
+          "gyro_magnitude_dps": 40.1812,
+          "accel_msd_ge5_count": 4,
+          "accel_msd_max": 8.671426,
+          "quiet": false
+        },
+        {
+          "second": 5,
+          "n": 10,
+          "accel_msd": 3.9124868800000003,
+          "gyro_msd": 993.0043459999999,
+          "accel_magnitude_mps2": 5.979,
+          "gyro_magnitude_dps": 39.6226,
+          "accel_msd_ge5_count": 3,
+          "accel_msd_max": 8.98116,
+          "quiet": false
+        },
+        {
+          "second": 6,
+          "n": 10,
+          "accel_msd": 3.7275702020000003,
+          "gyro_msd": 830.6483329999999,
+          "accel_magnitude_mps2": 7.175,
+          "gyro_magnitude_dps": 37.309999999999995,
+          "accel_msd_ge5_count": 4,
+          "accel_msd_max": 7.404639,
+          "quiet": false
+        },
+        {
+          "second": 7,
+          "n": 10,
+          "accel_msd": 2.93804038,
+          "gyro_msd": 1161.307341,
+          "accel_magnitude_mps2": 6.457000000000001,
+          "gyro_magnitude_dps": 43.251,
+          "accel_msd_ge5_count": 2,
+          "accel_msd_max": 6.044566,
+          "quiet": false
+        },
+        {
+          "second": 8,
+          "n": 10,
+          "accel_msd": 4.699846600000001,
+          "gyro_msd": 1207.1243,
+          "accel_magnitude_mps2": 6.060599999999999,
+          "gyro_magnitude_dps": 42.6626,
+          "accel_msd_ge5_count": 4,
+          "accel_msd_max": 9.610049,
+          "quiet": false
+        },
+        {
+          "second": 9,
+          "n": 10,
+          "accel_msd": 4.20396271,
+          "gyro_msd": 1403.2112929999998,
+          "accel_magnitude_mps2": 5.8908,
+          "gyro_magnitude_dps": 45.8989,
+          "accel_msd_ge5_count": 4,
+          "accel_msd_max": 10.02124,
+          "quiet": false
+        },
+        {
+          "second": 10,
+          "n": 10,
+          "accel_msd": 4.62588816,
+          "gyro_msd": 1177.7601920000002,
+          "accel_magnitude_mps2": 5.2796,
+          "gyro_magnitude_dps": 47.36429999999999,
+          "accel_msd_ge5_count": 4,
+          "accel_msd_max": 8.878482,
+          "quiet": false
+        },
+        {
+          "second": 11,
+          "n": 10,
+          "accel_msd": 3.83131563,
+          "gyro_msd": 1379.38517,
+          "accel_magnitude_mps2": 5.079,
+          "gyro_magnitude_dps": 40.9572,
+          "accel_msd_ge5_count": 3,
+          "accel_msd_max": 8.440265,
+          "quiet": false
+        },
+        {
+          "second": 12,
+          "n": 10,
+          "accel_msd": 4.27088771,
+          "gyro_msd": 883.0795351,
+          "accel_magnitude_mps2": 7.1477,
+          "gyro_magnitude_dps": 42.7303,
+          "accel_msd_ge5_count": 3,
+          "accel_msd_max": 19.10748,
+          "quiet": false
+        },
+        {
+          "second": 13,
+          "n": 10,
+          "accel_msd": 0.0355477691,
+          "gyro_msd": 12.002839400000003,
+          "accel_magnitude_mps2": 9.4945,
+          "gyro_magnitude_dps": 10.5253,
+          "accel_msd_ge5_count": 0,
+          "accel_msd_max": 0.113481,
+          "quiet": false
+        },
+        {
+          "second": 14,
+          "n": 9,
+          "accel_msd": 0.008779997533333334,
+          "gyro_msd": 3.820100298888889,
+          "accel_magnitude_mps2": 9.781444444444444,
+          "gyro_magnitude_dps": 5.3551111111111105,
+          "accel_msd_ge5_count": 0,
+          "accel_msd_max": 0.03468541,
+          "quiet": false
+        },
+        {
+          "second": 15,
+          "n": 10,
+          "accel_msd": 0.0007116674039999999,
+          "gyro_msd": 0.21327158500000004,
+          "accel_magnitude_mps2": 9.801,
+          "gyro_magnitude_dps": 3.2522999999999995,
+          "accel_msd_ge5_count": 0,
+          "accel_msd_max": 0.001795212,
+          "quiet": true
+        },
+        {
+          "second": 16,
+          "n": 10,
+          "accel_msd": 0.000282099255,
+          "gyro_msd": 0.0585521694,
+          "accel_magnitude_mps2": 9.796499999999998,
+          "gyro_magnitude_dps": 1.6502,
+          "accel_msd_ge5_count": 0,
+          "accel_msd_max": 0.0006731907,
+          "quiet": true
+        },
+        {
+          "second": 17,
+          "n": 10,
+          "accel_msd": 0.00021798585500000002,
+          "gyro_msd": 0.07080376289999998,
+          "accel_magnitude_mps2": 9.791899999999998,
+          "gyro_magnitude_dps": 1.6225999999999998,
+          "accel_msd_ge5_count": 0,
+          "accel_msd_max": 0.0008655334,
+          "quiet": true
+        },
+        {
+          "second": 18,
+          "n": 10,
+          "accel_msd": 0.0007469285969999999,
+          "gyro_msd": 0.33304907899999997,
+          "accel_magnitude_mps2": 9.7792,
+          "gyro_magnitude_dps": 1.8630000000000002,
+          "accel_msd_ge5_count": 0,
+          "accel_msd_max": 0.004455923,
+          "quiet": true
+        },
+        {
+          "second": 19,
+          "n": 10,
+          "accel_msd": 0.00039750377900000004,
+          "gyro_msd": 0.212629656,
+          "accel_magnitude_mps2": 9.7822,
+          "gyro_magnitude_dps": 2.3168,
+          "accel_msd_ge5_count": 0,
+          "accel_msd_max": 0.001795178,
+          "quiet": true
+        },
+        {
+          "second": 20,
+          "n": 10,
+          "accel_msd": 0.0011989265449999999,
+          "gyro_msd": 0.49112764000000003,
+          "accel_magnitude_mps2": 9.7903,
+          "gyro_magnitude_dps": 2.3154,
+          "accel_msd_ge5_count": 0,
+          "accel_msd_max": 0.003910946,
+          "quiet": true
+        },
+        {
+          "second": 21,
+          "n": 10,
+          "accel_msd": 0.00039429838,
+          "gyro_msd": 0.050821531200000006,
+          "accel_magnitude_mps2": 9.7755,
+          "gyro_magnitude_dps": 1.0397,
+          "accel_msd_ge5_count": 0,
+          "accel_msd_max": 0.001121987,
+          "quiet": true
+        },
+        {
+          "second": 22,
+          "n": 10,
+          "accel_msd": 0.000201957543,
+          "gyro_msd": 0.07223696799999998,
+          "accel_magnitude_mps2": 9.7803,
+          "gyro_magnitude_dps": 1.6146999999999998,
+          "accel_msd_ge5_count": 0,
+          "accel_msd_max": 0.0007693627,
+          "quiet": true
+        },
+        {
+          "second": 23,
+          "n": 10,
+          "accel_msd": 9.6170216e-05,
+          "gyro_msd": 0.0438135968,
+          "accel_magnitude_mps2": 9.787899999999999,
+          "gyro_magnitude_dps": 1.5479,
+          "accel_msd_ge5_count": 0,
+          "accel_msd_max": 0.0001923407,
+          "quiet": true
+        },
+        {
+          "second": 24,
+          "n": 10,
+          "accel_msd": 6.4113481e-05,
+          "gyro_msd": 0.0432509703,
+          "accel_magnitude_mps2": 9.780800000000001,
+          "gyro_magnitude_dps": 1.984,
+          "accel_msd_ge5_count": 0,
+          "accel_msd_max": 0.0001602838,
+          "quiet": true
+        },
+        {
+          "second": 25,
+          "n": 10,
+          "accel_msd": 0.000153872322,
+          "gyro_msd": 0.024675536200000004,
+          "accel_magnitude_mps2": 9.780700000000001,
+          "gyro_magnitude_dps": 1.6771,
+          "accel_msd_ge5_count": 0,
+          "accel_msd_max": 0.0004487938,
+          "quiet": true
+        },
+        {
+          "second": 26,
+          "n": 10,
+          "accel_msd": 0.000192340431,
+          "gyro_msd": 0.0219394011,
+          "accel_magnitude_mps2": 9.777099999999999,
+          "gyro_magnitude_dps": 2.0317,
+          "accel_msd_ge5_count": 0,
+          "accel_msd_max": 0.000544964,
+          "quiet": true
+        },
+        {
+          "second": 27,
+          "n": 10,
+          "accel_msd": 6.411343999999999e-05,
+          "gyro_msd": 0.00736466714,
+          "accel_magnitude_mps2": 9.7843,
+          "gyro_magnitude_dps": 1.5369999999999997,
+          "accel_msd_ge5_count": 0,
+          "accel_msd_max": 0.0002885109,
+          "quiet": true
+        },
+        {
+          "second": 28,
+          "n": 10,
+          "accel_msd": 3.2056682000000005e-05,
+          "gyro_msd": 0.009439099800000001,
+          "accel_magnitude_mps2": 9.7851,
+          "gyro_magnitude_dps": 1.6021999999999998,
+          "accel_msd_ge5_count": 0,
+          "accel_msd_max": 0.0001923401,
+          "quiet": true
+        },
+        {
+          "second": 29,
+          "n": 10,
+          "accel_msd": 4.8085061e-05,
+          "gyro_msd": 0.006881565299999999,
+          "accel_magnitude_mps2": 9.7803,
+          "gyro_magnitude_dps": 1.5896,
+          "accel_msd_ge5_count": 0,
+          "accel_msd_max": 0.0001282267,
+          "quiet": true
+        }
+      ],
+      "continuous_quiet_tail_start_s": 15
+    },
+    {
+      "session_id": 55,
+      "notes": "Trial 50: Grandma runs at continuous pace then stops",
+      "activity": "run-then-stop",
+      "trial": 50,
+      "raw_n": 300,
+      "kept_n": 300,
+      "dropped_prefix_or_other_segments": 0,
+      "duration_s": 30.043,
+      "first_sample_number": 147,
+      "last_sample_number": 446,
+      "counter_discontinuities": 0,
+      "missing_counters": 0,
+      "nonpositive_time_deltas": 0,
+      "time_gaps_gt250ms": 0,
+      "dt_min_ms": 100.0,
+      "dt_median_ms": 100.0,
+      "dt_max_ms": 101.0,
+      "dt_p95_ms": 101.0,
+      "nullable_metric_counts": {
+        "board_time_ms": 0,
+        "accel_msd": 0,
+        "gyro_msd": 0,
+        "accel_magnitude_slope": 0,
+        "gyro_magnitude_slope": 0,
+        "accel_msd_slope": 0,
+        "gyro_msd_slope": 0
+      },
+      "accel_msd": {
+        "min": 0.0,
+        "median": 0.1702697,
+        "mean": 1.6676382866475667,
+        "p95": 6.247456400000002,
+        "max": 8.585867
+      },
+      "gyro_msd": {
+        "min": 0.001281666,
+        "median": 62.11276,
+        "mean": 363.21814188072,
+        "p95": 1387.64645,
+        "max": 1908.447
+      },
+      "accel_magnitude_mps2": {
+        "min": 3.189,
+        "median": 9.756,
+        "mean": 8.861016666666666,
+        "p95": 10.9105,
+        "max": 12.817
+      },
+      "gyro_magnitude_dps": {
+        "min": 1.135,
+        "median": 13.668,
+        "mean": 20.06881333333333,
+        "p95": 56.47900000000001,
+        "max": 87.41
+      },
+      "accel5_count": 40,
+      "accel5_percent": 13.333333333333334,
+      "accel5_pulses": 37,
+      "accel5_longest_consecutive": 4,
+      "first_accel5_s": 1.009,
+      "last_accel5_s": 14.108,
+      "first_accel5_after_2s": 2.118,
+      "first3s": {
+        "n": 30,
+        "accel_msd": 2.6425675523333334,
+        "gyro_msd": 675.3730253666666,
+        "accel_magnitude_mps2": 8.653533333333334,
+        "gyro_magnitude_dps": 37.319766666666666,
+        "accel_msd_ge5_count": 5
+      },
+      "last3s": {
+        "n": 30,
+        "accel_msd": 0.0008249272146666665,
+        "gyro_msd": 0.16115658673333336,
+        "accel_magnitude_mps2": 9.772133333333333,
+        "gyro_magnitude_dps": 2.5582000000000003,
+        "accel_msd_ge5_count": 0
+      },
+      "last5s": {
+        "n": 50,
+        "accel_msd": 0.0006834496137999999,
+        "gyro_msd": 0.20603487523999997,
+        "accel_magnitude_mps2": 9.77212,
+        "gyro_magnitude_dps": 2.2303200000000003,
+        "accel_msd_ge5_count": 0
+      },
+      "first10s": {
+        "n": 100,
+        "accel_msd": 3.3697100973,
+        "gyro_msd": 733.5767149099999,
+        "accel_magnitude_mps2": 8.10229,
+        "gyro_magnitude_dps": 35.728550000000006,
+        "accel_msd_ge5_count": 25
+      },
+      "seconds10to20": {
+        "n": 99,
+        "accel_msd": 1.6491940535651515,
+        "gyro_msd": 359.4876052076768,
+        "accel_magnitude_mps2": 8.702868686868687,
+        "gyro_magnitude_dps": 22.657868686868692,
+        "accel_msd_ge5_count": 15
+      },
+      "last10s": {
+        "n": 100,
+        "accel_msd": 0.0005000851091999999,
+        "gyro_msd": 0.18428912985999996,
+        "accel_magnitude_mps2": 9.76735,
+        "gyro_magnitude_dps": 2.03,
+        "accel_msd_ge5_count": 0
+      },
+      "first_trigger": {
+        "time_s": 1.009,
+        "pre3s": {
+          "n": 10,
+          "accel_msd": 1.1548909349999998,
+          "gyro_msd": 321.9708111,
+          "accel_magnitude_mps2": 9.6476,
+          "gyro_magnitude_dps": 31.639799999999997,
+          "accel_msd_ge5_count": 0
+        },
+        "post5to8s": {
+          "n": 30,
+          "accel_msd": 4.076304439999999,
+          "gyro_msd": 795.932102,
+          "accel_magnitude_mps2": 8.197033333333334,
+          "gyro_magnitude_dps": 36.48226666666667,
+          "accel_msd_ge5_count": 10
+        }
+      },
+      "after_warmup_trigger": {
+        "time_s": 2.118,
+        "pre3s": {
+          "n": 21,
+          "accel_msd": 2.38895467952381,
+          "gyro_msd": 661.0453290952382,
+          "accel_magnitude_mps2": 8.81057142857143,
+          "gyro_magnitude_dps": 37.26861904761904,
+          "accel_msd_ge5_count": 3
+        },
+        "post5to8s": {
+          "n": 30,
+          "accel_msd": 4.5012268466666665,
+          "gyro_msd": 800.8268286666668,
+          "accel_magnitude_mps2": 7.925066666666666,
+          "gyro_magnitude_dps": 32.89026666666667,
+          "accel_msd_ge5_count": 10
+        }
+      },
+      "one_second_bins": [
+        {
+          "second": 0,
+          "n": 10,
+          "accel_msd": 1.1548909349999998,
+          "gyro_msd": 321.9708111,
+          "accel_magnitude_mps2": 9.6476,
+          "gyro_magnitude_dps": 31.639799999999997,
+          "accel_msd_ge5_count": 0,
+          "accel_msd_max": 4.557034,
+          "quiet": false
+        },
+        {
+          "second": 1,
+          "n": 10,
+          "accel_msd": 3.7800087820000003,
+          "gyro_msd": 927.22138,
+          "accel_magnitude_mps2": 8.2253,
+          "gyro_magnitude_dps": 42.2606,
+          "accel_msd_ge5_count": 3,
+          "accel_msd_max": 7.559185,
+          "quiet": false
+        },
+        {
+          "second": 2,
+          "n": 10,
+          "accel_msd": 2.99280294,
+          "gyro_msd": 776.9268850000001,
+          "accel_magnitude_mps2": 8.0877,
+          "gyro_magnitude_dps": 38.0589,
+          "accel_msd_ge5_count": 2,
+          "accel_msd_max": 5.502773,
+          "quiet": false
+        },
+        {
+          "second": 3,
+          "n": 10,
+          "accel_msd": 2.69440559,
+          "gyro_msd": 687.7680210000001,
+          "accel_magnitude_mps2": 6.811,
+          "gyro_magnitude_dps": 34.9904,
+          "accel_msd_ge5_count": 2,
+          "accel_msd_max": 5.624877,
+          "quiet": false
+        },
+        {
+          "second": 4,
+          "n": 10,
+          "accel_msd": 2.49760248,
+          "gyro_msd": 597.430867,
+          "accel_magnitude_mps2": 8.1335,
+          "gyro_magnitude_dps": 32.97589999999999,
+          "accel_msd_ge5_count": 1,
+          "accel_msd_max": 5.303027,
+          "quiet": false
+        },
+        {
+          "second": 5,
+          "n": 10,
+          "accel_msd": 3.153859426,
+          "gyro_msd": 741.941809,
+          "accel_magnitude_mps2": 8.540000000000001,
+          "gyro_magnitude_dps": 37.1689,
+          "accel_msd_ge5_count": 3,
+          "accel_msd_max": 6.002345,
+          "quiet": false
+        },
+        {
+          "second": 6,
+          "n": 10,
+          "accel_msd": 3.5284945800000003,
+          "gyro_msd": 913.1590899999999,
+          "accel_magnitude_mps2": 7.6902,
+          "gyro_magnitude_dps": 41.3861,
+          "accel_msd_ge5_count": 3,
+          "accel_msd_max": 7.593294,
+          "quiet": false
+        },
+        {
+          "second": 7,
+          "n": 10,
+          "accel_msd": 4.123231199999999,
+          "gyro_msd": 658.8677230000001,
+          "accel_magnitude_mps2": 8.151800000000001,
+          "gyro_magnitude_dps": 32.947199999999995,
+          "accel_msd_ge5_count": 3,
+          "accel_msd_max": 7.59964,
+          "quiet": false
+        },
+        {
+          "second": 8,
+          "n": 10,
+          "accel_msd": 4.57718754,
+          "gyro_msd": 815.769493,
+          "accel_magnitude_mps2": 8.7491,
+          "gyro_magnitude_dps": 35.1135,
+          "accel_msd_ge5_count": 4,
+          "accel_msd_max": 8.352493,
+          "quiet": false
+        },
+        {
+          "second": 9,
+          "n": 10,
+          "accel_msd": 5.1946175,
+          "gyro_msd": 894.7110700000001,
+          "accel_magnitude_mps2": 6.986700000000001,
+          "gyro_magnitude_dps": 30.744199999999996,
+          "accel_msd_ge5_count": 4,
+          "accel_msd_max": 8.585867,
+          "quiet": false
+        },
+        {
+          "second": 10,
+          "n": 10,
+          "accel_msd": 3.3560064000000005,
+          "gyro_msd": 706.185024,
+          "accel_magnitude_mps2": 7.6549000000000005,
+          "gyro_magnitude_dps": 35.2693,
+          "accel_msd_ge5_count": 5,
+          "accel_msd_max": 6.440658,
+          "quiet": false
+        },
+        {
+          "second": 11,
+          "n": 10,
+          "accel_msd": 3.2093719699999994,
+          "gyro_msd": 860.4866199999999,
+          "accel_magnitude_mps2": 8.0374,
+          "gyro_magnitude_dps": 31.2594,
+          "accel_msd_ge5_count": 2,
+          "accel_msd_max": 6.133169,
+          "quiet": false
+        },
+        {
+          "second": 12,
+          "n": 10,
+          "accel_msd": 3.87724004,
+          "gyro_msd": 706.0558831999999,
+          "accel_magnitude_mps2": 7.4749,
+          "gyro_magnitude_dps": 31.9988,
+          "accel_msd_ge5_count": 4,
+          "accel_msd_max": 8.270332,
+          "quiet": false
+        },
+        {
+          "second": 13,
+          "n": 9,
+          "accel_msd": 2.9419196433333337,
+          "gyro_msd": 596.8091544444445,
+          "accel_magnitude_mps2": 7.7540000000000004,
+          "gyro_magnitude_dps": 31.204333333333338,
+          "accel_msd_ge5_count": 3,
+          "accel_msd_max": 7.273334,
+          "quiet": false
+        },
+        {
+          "second": 14,
+          "n": 10,
+          "accel_msd": 1.6971091600000001,
+          "gyro_msd": 375.7412427,
+          "accel_magnitude_mps2": 8.5711,
+          "gyro_magnitude_dps": 26.202099999999994,
+          "accel_msd_ge5_count": 1,
+          "accel_msd_max": 6.43412,
+          "quiet": false
+        },
+        {
+          "second": 15,
+          "n": 10,
+          "accel_msd": 0.9276402359999999,
+          "gyro_msd": 230.8244365,
+          "accel_magnitude_mps2": 9.277099999999999,
+          "gyro_magnitude_dps": 24.494099999999996,
+          "accel_msd_ge5_count": 0,
+          "accel_msd_max": 2.484273,
+          "quiet": false
+        },
+        {
+          "second": 16,
+          "n": 10,
+          "accel_msd": 0.484544775,
+          "gyro_msd": 91.98872380000002,
+          "accel_magnitude_mps2": 9.3809,
+          "gyro_magnitude_dps": 19.5507,
+          "accel_msd_ge5_count": 0,
+          "accel_msd_max": 1.876989,
+          "quiet": false
+        },
+        {
+          "second": 17,
+          "n": 10,
+          "accel_msd": 0.11414461900000002,
+          "gyro_msd": 47.4567,
+          "accel_magnitude_mps2": 9.399199999999999,
+          "gyro_magnitude_dps": 15.995000000000001,
+          "accel_msd_ge5_count": 0,
+          "accel_msd_max": 0.3415973,
+          "quiet": false
+        },
+        {
+          "second": 18,
+          "n": 10,
+          "accel_msd": 0.0129381235,
+          "gyro_msd": 2.97960678,
+          "accel_magnitude_mps2": 9.631199999999998,
+          "gyro_magnitude_dps": 9.3477,
+          "accel_msd_ge5_count": 0,
+          "accel_msd_max": 0.06969145,
+          "quiet": false
+        },
+        {
+          "second": 19,
+          "n": 10,
+          "accel_msd": 0.000298127795,
+          "gyro_msd": 0.080815576,
+          "accel_magnitude_mps2": 9.7531,
+          "gyro_magnitude_dps": 2.1118999999999994,
+          "accel_msd_ge5_count": 0,
+          "accel_msd_max": 0.000609077,
+          "quiet": true
+        },
+        {
+          "second": 20,
+          "n": 10,
+          "accel_msd": 0.000169900894,
+          "gyro_msd": 0.328848138,
+          "accel_magnitude_mps2": 9.7581,
+          "gyro_magnitude_dps": 2.1907000000000005,
+          "accel_msd_ge5_count": 0,
+          "accel_msd_max": 0.0003205668,
+          "quiet": true
+        },
+        {
+          "second": 21,
+          "n": 10,
+          "accel_msd": 0.000477645372,
+          "gyro_msd": 0.16893226,
+          "accel_magnitude_mps2": 9.761800000000001,
+          "gyro_magnitude_dps": 2.1153000000000004,
+          "accel_msd_ge5_count": 0,
+          "accel_msd_max": 0.0009617005,
+          "quiet": true
+        },
+        {
+          "second": 22,
+          "n": 10,
+          "accel_msd": 0.00036224052499999996,
+          "gyro_msd": 0.0490669366,
+          "accel_magnitude_mps2": 9.764100000000001,
+          "gyro_magnitude_dps": 1.4863,
+          "accel_msd_ge5_count": 0,
+          "accel_msd_max": 0.0009296438,
+          "quiet": true
+        },
+        {
+          "second": 23,
+          "n": 10,
+          "accel_msd": 0.00025324892100000003,
+          "gyro_msd": 0.047831302799999996,
+          "accel_magnitude_mps2": 9.764199999999999,
+          "gyro_magnitude_dps": 1.5595,
+          "accel_msd_ge5_count": 0,
+          "accel_msd_max": 0.0004167369,
+          "quiet": true
+        },
+        {
+          "second": 24,
+          "n": 10,
+          "accel_msd": 0.000326978181,
+          "gyro_msd": 0.20463055199999997,
+          "accel_magnitude_mps2": 9.763100000000001,
+          "gyro_magnitude_dps": 1.7851,
+          "accel_msd_ge5_count": 0,
+          "accel_msd_max": 0.0008334738,
+          "quiet": true
+        },
+        {
+          "second": 25,
+          "n": 10,
+          "accel_msd": 0.000589843055,
+          "gyro_msd": 0.31051238000000003,
+          "accel_magnitude_mps2": 9.772900000000002,
+          "gyro_magnitude_dps": 1.7262,
+          "accel_msd_ge5_count": 0,
+          "accel_msd_max": 0.002083684,
+          "quiet": true
+        },
+        {
+          "second": 26,
+          "n": 10,
+          "accel_msd": 0.000362240535,
+          "gyro_msd": 0.245087206,
+          "accel_magnitude_mps2": 9.771400000000002,
+          "gyro_magnitude_dps": 1.7779,
+          "accel_msd_ge5_count": 0,
+          "accel_msd_max": 0.001025814,
+          "quiet": true
+        },
+        {
+          "second": 27,
+          "n": 10,
+          "accel_msd": 0.00010578705,
+          "gyro_msd": 0.11935243799999999,
+          "accel_magnitude_mps2": 9.773900000000001,
+          "gyro_magnitude_dps": 2.0168000000000004,
+          "accel_msd_ge5_count": 0,
+          "accel_msd_max": 0.0003526235,
+          "quiet": true
+        },
+        {
+          "second": 28,
+          "n": 10,
+          "accel_msd": 0.0014201130899999998,
+          "gyro_msd": 0.25941948610000004,
+          "accel_magnitude_mps2": 9.774899999999999,
+          "gyro_magnitude_dps": 3.2674,
+          "accel_msd_ge5_count": 0,
+          "accel_msd_max": 0.00452001,
+          "quiet": true
+        },
+        {
+          "second": 29,
+          "n": 10,
+          "accel_msd": 0.000865534129,
+          "gyro_msd": 0.115334266,
+          "accel_magnitude_mps2": 9.7684,
+          "gyro_magnitude_dps": 2.3737000000000004,
+          "accel_msd_ge5_count": 0,
+          "accel_msd_max": 0.003269793,
+          "quiet": true
+        }
+      ],
+      "continuous_quiet_tail_start_s": 19
+    }
+  ]
+}

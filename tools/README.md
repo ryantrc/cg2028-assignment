@@ -1,84 +1,174 @@
-# Record normal activities
+# Record tests, free activity and calibration
 
-`record_activity.py` runs on your Mac, reads the application's UART
-output, and appends complete samples to **both a SQLite database and a CSV file**.
-No additional Python packages are needed. Python 3 on macOS or Linux is required
-for serial recording. **Rebuild and flash the updated `CG2028_Assignment`
-firmware before recording:** it now sends vector magnitude instead of the
-arithmetic mean across axes. Old `Avg` serial output produces an explicit error
-so that averages cannot be mistaken for magnitudes. Sampling remains at 100 ms
-and the baud rate remains 115200.
+`record_activity.py` runs on your Mac and saves UART readings without additional
+Python packages. macOS or Linux is required for serial recording. **Choose
+exactly one mode:** `--test`, `--free`, or `--calibration`. There is no default
+recording mode; the old `--dataset` option has been removed.
 
-The [Prototype 1 guide](../docs/prototype-1.md) explains the experimental
-fall/near-fall decisions, LED behavior and board-reset procedure. Its `DETECTOR`
-messages appear in Terminal; measurement files retain their 22-column format.
+This update changes the Python recorder only. No firmware reflash is needed if
+the board already runs Prototype 1. Sampling remains **100 ms**, baud remains
+**115200**, and the existing Magnitude/MSD calculations are unchanged. Old `Avg`
+serial output is still rejected explicitly.
 
-```text
-STM32 accelerometer + gyroscope → UART output → Python logger
-                                                       ├─ SQLite database
-                                                       └─ CSV for Excel
-```
+The [Prototype 1 guide](../docs/prototype-1.md) explains the detector, LED behavior
+and board-reset procedure. The recording mode affects where data is stored and
+what labels you must provide; it does not reconfigure the detector.
 
 ## Start a recording
 
-1. Build/run `CG2028_Assignment` on the board and click Resume in CubeIDE if it
-   is paused at `main()`.
-2. Close `screen` or any other serial viewer so the logger can own the port.
-   For a named session, use `screen -S stm32 -X quit` in another Terminal tab.
-   Otherwise, use `screen -ls` and `screen -S SESSION_ID -X quit`.
-3. Run:
+1. Run `CG2028_Assignment` with Prototype 1 on the board and click Resume in
+   CubeIDE if execution is paused at `main()`. Reset the board between tests so
+   a previous latched fall alarm does not carry into the next recording.
+2. Close `screen` or another serial viewer. For a named screen session, use
+   `screen -S stm32 -X quit`; otherwise use `screen -ls` and
+   `screen -S SESSION_ID -X quit` from another Terminal tab.
+3. From the repository root, choose a command:
 
    ```bash
-   cd /Users/ryantan/MyWork/CG2028workspace/cg2028-Assignment
-   python3 tools/record_activity.py --activity normal
+   python3 tools/record_activity.py --test --name fall-test-3 --verdict near-fall
+   python3 tools/record_activity.py --free --name normal-walking
+   python3 tools/record_activity.py --calibration --name walking-slowly \
+     --notes "Calibration: consistent hand movement"
    ```
 
+The first command records a test named `fall-test-3-near-fall`, with
+`expected_verdict=near-fall`. The actual firmware verdict is stored separately.
+Your expected label never forces a result, and neither label nor name is sent
+to the board. `--test` requires one of `--verdict fall`, `--verdict near-fall`,
+or `--verdict normal`. Without `--name`, a test is named
+`test-<session_id>-<expected_verdict>`. `--activity` is an alias for `--name`.
+The default free name is `free`; the default calibration name is `calibration`.
+
+For calibration, `--name walking-slowly` saves `walking-slowly` in the
+`activity` column, and `--notes "Calibration: consistent hand movement"`
+saves that description in the `notes` column. You can use
+`--activity walking-slowly` instead of `--name walking-slowly`; they mean the
+same thing. The name labels the recording; it does not create a new filename.
+Each run appends a new session with an automatically assigned session ID, so
+you can repeat the same activity name and distinguish trials by session and notes.
+
 The logger detects the USB serial device and uses 115200 baud, 8 data bits,
-no parity, 1 stop bit and no flow control. If multiple devices are connected,
-choose explicitly using `--port /dev/cu.usbmodemXXXX` (use the current name from
-`ls /dev/cu.usbmodem*`). The detected name can change when reconnecting the board.
+no parity, 1 stop bit and no flow control. If several devices are connected,
+choose `--port /dev/cu.usbmodemXXXX` using the current device name from
+`ls /dev/cu.usbmodem*`.
 
-Watch the readings and saved-row count in Terminal. **Each run automatically
-stops after 30 seconds**, keeping every complete sample saved to SQLite and CSV.
-The timer starts when the recording session opens, including time spent waiting
-for the board, so resume the board before starting. Partial samples at the time
-limit are discarded. The board continues running after the logger stops.
-You can **press Ctrl+C to stop early**; there is no `screen` shortcut involved.
-An explicit `--duration 60` overrides the default for a one-minute recording.
-If `--samples` is supplied, recording ends at that count or the time limit,
-whichever happens first.
-The logger enables Ctrl+C handling and normal newline output on its interactive
-terminal at startup, including when an earlier program left those settings
-disabled. Redirected files and pipes are left alone.
+| Mode | Automatic stopping condition | If a fall is detected early |
+|---|---|---|
+| `--test` | 30 seconds by default; `--duration` changes the limit | Keeps recording until the limit |
+| `--calibration` | 30 seconds | Keeps recording until the limit |
+| `--free` | When a fall is reported; otherwise no time limit | Prints **Fall detected** and stops Python |
 
-The board **and this logger** must be running and connected to record. Nothing is
-recorded while the logger is closed, the board is paused, or the computer sleeps.
-If disconnected, saved data is kept; reconnect and run the command again.
+Tests default to **30 seconds** and accept `--duration 60` for a longer test.
+**A fall does not end a test early.** For example, a fall reported 12 seconds
+into a default test is saved, and recording continues for the remaining
+18 seconds. The test summary is finalized when recording stops.
+Calibration is fixed at **30 seconds**: `--duration 30` is accepted, other
+values and `--samples` are rejected. Tests may use `--samples` to stop at a
+sample count or their time limit, whichever happens first.
+
+**Free mode runs until a fall is reported**, without a time limit. An explicit
+`POSSIBLE_FALL` event or a valid `FALL_LATCHED` status with `Alarm=1` prints
+**Fall detected** and stops Python; normal, near-fall and uncertain messages do
+not stop it. An alarm already latched when the logger connects is identified
+separately, and the run stops so you can reset the board. The STM32 continues
+running. Free mode rejects `--duration` and `--samples`.
+
+`--verdict` is not accepted outside test mode. Missing or mixed modes and missing
+required test verdicts are rejected before serial access.
+
+For a timed test/calibration run, the timer starts when recording opens,
+including time waiting for the board. Resume the board first. Complete samples
+are saved as they arrive; partial
+samples at a deadline are discarded. **Ctrl+C stops early** and keeps saved
+readings. The board continues running afterward. The logger repairs Ctrl+C and
+newline handling on its interactive Terminal; redirected streams are left alone.
+
+The board and logger must both be running to save measurements on the Mac.
+When a connection is lost, saved data is retained; reconnect and start a new run.
+
+### Live counter
+
+The Terminal updates one line in place while recording:
+
+```text
+reading no. = 42 State = NORMAL Alarm = 0
+```
+
+The counter starts at zero for each run and counts complete saved sensor samples,
+not the board's lifetime sample number. State and alarm show the latest valid
+firmware diagnostic; both show `UNKNOWN` until the first one arrives. `Alarm = 1`
+means the board's fall alarm is latched. Reset the board before a new trial and
+check for `State = NORMAL Alarm = 0` before performing your movement.
+
+Routine `STATUS` messages update this line instead of scrolling the Terminal.
+Detector events such as spikes, fall/near-fall decisions and sensor faults, plus
+warnings, still print separately. Full sensor values continue to be saved, and
+test/free databases retain their received diagnostics. Redirected console output
+uses plain lines without terminal control codes. This display change needs no
+firmware upload and does not change recording duration or detector behavior.
 
 ## Files created and retained
 
-- `data/activity_readings.sqlite3`: the SQLite database, a normal local file.
-- `data/activity_readings.csv`: the same measurements in a spreadsheet format.
+| Mode | Database | CSV |
+|---|---|---|
+| Test | `data/prototype_verdicts.sqlite3`: expected label, results, samples and detector events | `data/prototype_verdicts.csv`: one summary row per test |
+| Free | `data/prototype_readings.sqlite3`: measurements and diagnostic history | `data/prototype_readings.csv`: one row per sample, 22 columns |
+| Calibration | `data/calibration_readings.sqlite3`: measurements | `data/calibration_readings.csv`: one row per sample, 22 columns |
 
-**Reset on 24 September 2026:** all earlier trials, recording backups and
-generated analysis were cleared at your request. The database now starts empty
-and the CSV contains only the current column headers; the next run is session 1.
+**A test writes only to its test pair.** In the combined test database, `runs`
+contains summaries, `test_samples` contains telemetry, `test_readings` exposes
+the readings for queries, and `events` retains received `DETECTOR` messages.
+The test CSV contains summary rows rather than every sensor sample.
 
-The [data README](../data/README.md) explains the **22-column CSV format**.
-Current rates appear in the four `*_slope` columns. The four empty legacy
-`*_rate` columns have been removed from the CSV and database and will not be
-created for future recordings.
+Earlier calibration sessions 1–35 retain their 10,465 readings. The 601 readings
+from earlier test sessions 36–37 were moved to the combined test database with
+session IDs and labels preserved; original reading IDs are kept in
+`legacy_record_id`. Their expected label remains empty and their observed
+verdict remains `NOT_RECORDED`, because those facts were not originally saved.
+The existing files were backed up before migration. Free recording starts with
+its own measurement files, without those old test rows.
 
-Each run creates a new session and appends rows; earlier recordings are retained.
-SQLite commits each complete sample, and the CSV is flushed after each row.
-The database is the authoritative copy. If the CSV is missing, it is recreated
-from the database on the next recording. A missing CSV tail is also recovered.
-If an existing CSV was edited or belongs to another database, the logger stops
-instead of mixing data; choose a new CSV filename with `--csv` to regenerate it.
-Open the CSV in Excel for analysis, but do not save spreadsheet edits over the
-logger's CSV while recording.
+Free recordings display detector events and retain all received `DETECTOR`
+messages in their measurement database's `detector_events` table. Routine
+statuses appear through the live counter. They have no expected verdict or separate
+test-summary files. Calibration keeps measurements only.
 
-Each row includes:
+`--db` and `--csv` override the selected mode's pair directly. For tests they
+select the combined test database and summary CSV; for free/calibration they
+select the measurement database and CSV. The old separate `--verdict-db` and
+`--verdict-csv` controls have been removed. Names and expected labels never
+select output destinations; the explicit mode does.
+
+SQLite is authoritative. Free/calibration CSVs are flushed after each sample;
+a missing CSV or missing tail can be recovered from the database. Test summaries
+are exported atomically from their database. If a CSV belongs to another dataset
+or contains incompatible edits, the logger stops rather than mixing records.
+Open CSVs in Excel after recording and save your analysis as a separate file.
+
+### Test verdicts
+
+Compare **`expected_verdict` with `observed_verdict`** in the test CSV, and check
+`recording_status`, `sensor_health` and `diagnostic_coverage` before interpreting
+an outcome. A new test starts with no observed detector result; its summary
+updates from the messages received, independently of your expected label.
+
+An explicit `POSSIBLE_FALL` or `NEAR_FALL` is recorded, both together produce
+`MIXED_DECISIONS`, and an unconfirmed latched-alarm status is distinguished from a
+new event. Incomplete observation, uncertainty and sensor faults are retained.
+See the [verdict fields and definitions](../data/README.md#reading-the-prototype-verdicts).
+
+`run_id` links each test's `runs`, `test_samples` and `events` rows in the same
+database. `test_readings` provides the telemetry together with its session
+information. Imported historical rows retain their source identity and start
+timestamps for reference.
+
+An active test has `recording_status=OPEN`. Timer expiry or Ctrl+C finalizes it;
+a killed process can leave the row open so the unfinished recording is visible.
+`FINISHED` describes saved end metadata, not a guaranteed successful detection.
+
+### Reading fields
+
+Each free/calibration CSV row, and each test's saved sensor reading, includes:
 
 | Fields | Meaning |
 |---|---|
@@ -105,8 +195,8 @@ The logger saves those metrics directly, without recalculating from rounded XYZ.
 
 ### If you open an older Avg-format dataset later
 
-The earlier workspace recordings were cleared by the reset above. If you later
-open another Avg-format dataset, the logger upgrades it automatically.
+If you open an older Avg-format measurement dataset in free or calibration mode,
+the logger upgrades it automatically. Current recordings use Magnitude.
 Timestamped `before-magnitude` copies of that database and CSV are created in a
 `backups` folder beside the files before conversion. The upgraded files replace the two
 Avg fields and two Avg-slope fields with magnitude and magnitude-slope fields;
@@ -230,40 +320,71 @@ described in the [Prototype 1 guide](../docs/prototype-1.md).
 
 ## Useful commands
 
-Record normal walking for one minute:
+Record a one-minute test whose expected result is normal:
 
 ```bash
-python3 tools/record_activity.py --activity walking --notes "Normal walking; board held at waist" --duration 60
+python3 tools/record_activity.py --test --name walking-control --verdict normal \
+  --notes "Board held at waist" --duration 60
 ```
 
-Record a different activity in a new session, using the same files:
+Record a near-fall test with an automatic name:
 
 ```bash
-python3 tools/record_activity.py --activity sitting --notes "Sitting down normally"
+python3 tools/record_activity.py --test --verdict near-fall
 ```
 
-Choose a different pair of output files:
+Record freely until the board reports a fall, or until you press Ctrl+C:
 
 ```bash
-python3 tools/record_activity.py --db data/experiment2.sqlite3 --csv data/experiment2.csv
+python3 tools/record_activity.py --free --name everyday-activity
 ```
 
-Show session counts without opening the serial port:
+Record 30 seconds of calibration measurements:
 
 ```bash
-python3 tools/record_activity.py --summary
+python3 tools/record_activity.py --calibration --name walking-slowly \
+  --notes "Calibration: consistent hand movement"
 ```
 
-Inspect the last five database rows with macOS's SQLite command:
+Choose a custom combined test database and its summary CSV:
 
 ```bash
-sqlite3 -header -column data/activity_readings.sqlite3 'SELECT * FROM readings ORDER BY record_id DESC LIMIT 5;'
+python3 tools/record_activity.py --test --name control --verdict normal \
+  --db data/control_tests.sqlite3 --csv data/control_tests.csv
 ```
 
-Stop after five samples for a quick recording check:
+Choose custom free-recording files:
 
 ```bash
-python3 tools/record_activity.py --activity verification --samples 5
+python3 tools/record_activity.py --free --db data/exploration.sqlite3 \
+  --csv data/exploration.csv
+```
+
+Show saved summaries without opening the serial port. Select a mode even for
+`--summary`; a test summary does not require `--verdict`:
+
+```bash
+python3 tools/record_activity.py --test --summary
+python3 tools/record_activity.py --free --summary
+python3 tools/record_activity.py --calibration --summary
+```
+
+Inspect the last five test sensor readings:
+
+```bash
+sqlite3 -header -column data/prototype_verdicts.sqlite3 'SELECT * FROM test_readings ORDER BY record_id DESC LIMIT 5;'
+```
+
+Inspect the last five free-recording rows:
+
+```bash
+sqlite3 -header -column data/prototype_readings.sqlite3 'SELECT * FROM readings ORDER BY record_id DESC LIMIT 5;'
+```
+
+Stop a test after five samples for a quick recording check:
+
+```bash
+python3 tools/record_activity.py --test --name verification --verdict normal --samples 5
 ```
 
 Recorded files are ignored by Git by default. The logger and this guide can be
@@ -272,7 +393,7 @@ shared with your teammate. Share measurement files separately when needed.
 ## Verification
 
 ```bash
-python3 -m unittest discover -s tools -p 'test_record_activity.py' -v
+python3 -m unittest discover -s tools -p 'test_*.py' -v
 cc -std=c11 -Wall -Wextra -Werror -pedantic -I CG2028_Assignment/Core/Inc tools/test_motion_metrics.c -lm -o /tmp/cg2028-motion-metrics-test
 /tmp/cg2028-motion-metrics-test
 ```

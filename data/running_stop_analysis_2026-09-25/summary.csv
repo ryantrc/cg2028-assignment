@@ -1,0 +1,11 @@
+trial,session_id,activity,samples,accel_msd_ge5_count,accel_msd_ge5_percent,max_accel_msd,spike_events,near_fall_events,possible_fall_events,uncertain_events,final_state,final_alarm,fresh_classification
+41,44,running-continuously,301,5,1.6611295681063125,6.151377,1,1,0,0,NORMAL,0,True
+42,45,running-continuously,300,78,26.0,12.38944,4,3,0,0,OBSERVING,0,True
+43,46,running-continuously,299,109,36.45484949832776,16.4461,4,3,0,0,OBSERVING,0,True
+44,48,running-continuously,300,103,34.333333333333336,11.08014,4,3,0,0,OBSERVING,0,True
+45,49,running-continuously,299,86,28.762541806020064,10.84164,4,3,0,0,OBSERVING,0,True
+46,50,run-then-stop,301,68,22.591362126245848,14.41482,2,2,0,0,NORMAL,0,True
+47,51,run-then-stop,301,60,19.93355481727575,13.49992,2,1,1,1,FALL_LATCHED,1,True
+48,52,run-then-stop,300,65,21.666666666666668,17.94558,0,0,0,0,FALL_LATCHED,1,False
+49,54,run-then-stop,300,37,12.333333333333334,19.10748,2,1,1,0,FALL_LATCHED,1,True
+50,55,run-then-stop,300,40,13.333333333333334,8.585867,2,2,0,0,NORMAL,0,True
