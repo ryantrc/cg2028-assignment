@@ -22,6 +22,12 @@ NORMAL = b"DETECTOR TimeMs=120 State=NORMAL Alarm=0 Sensors=OK Event=STATUS \n"
 SPIKE = b"DETECTOR TimeMs=220 State=OBSERVING Alarm=0 Sensors=OK Event=SPIKE observing\n"
 FALL = b"DETECTOR TimeMs=8220 State=FALL_LATCHED Alarm=1 Sensors=OK Event=POSSIBLE_FALL reset\n"
 NEAR = b"DETECTOR TimeMs=8220 State=NORMAL Alarm=0 Sensors=OK Event=NEAR_FALL moving\n"
+CONFIRMED = (b"DETECTOR TimeMs=2220 State=OBSERVING Alarm=0 Sensors=OK Event=DISTURBANCE_CONFIRMED "
+             b"BaselineMSD=1.000000e-01 EventMSD=1.000000e+00 IncreaseRatio=1.000000e+01\n")
+REJECTED = (b"DETECTOR TimeMs=2220 State=NORMAL Alarm=0 Sensors=OK Event=DISTURBANCE_REJECTED "
+            b"BaselineMSD=1.000000e+00 EventMSD=1.000000e+00 IncreaseRatio=1.000000e+00\n")
+UNKNOWN = b"DETECTOR TimeMs=2220 State=WARMUP Alarm=0 Sensors=OK Event=DISTURBANCE_UNKNOWN insufficient evidence\n"
+READY = b"DETECTOR TimeMs=7220 State=NORMAL Alarm=0 Sensors=OK Event=READY baseline ready\n"
 
 
 class ModeTests(unittest.TestCase):
@@ -166,6 +172,36 @@ class RecordingTests(unittest.TestCase):
         self.assertEqual((result, len(samples), len(events)), (0, 2, 2))
         self.assertEqual(run["observed_verdict"], "POSSIBLE_FALL")
         self.assertEqual(run["stop_reason"], "DURATION")
+
+    def test_gate_rejection_is_saved_and_displayed_without_a_near_fall(self):
+        _, samples, run, events, output, _ = self.run_recording(
+            [frame(1), SPIKE, frame(2), REJECTED, NORMAL], expected="near-fall", interactive=True,
+        )
+        self.assertEqual([row["sample_number"] for row in samples], [1, 2])
+        self.assertEqual(run["observed_verdict"], "NO_EVENT_OBSERVED")
+        self.assertEqual([row["event"] for row in events], ["SPIKE", "DISTURBANCE_REJECTED", "STATUS"])
+        self.assertEqual([row["parse_valid"] for row in events], [1, 1, 1])
+        self.assertIn("IncreaseRatio=1.000000e+00", events[1]["message"])
+        self.assertEqual(output.count("Event=DISTURBANCE_REJECTED"), 1)
+        self.assertIn("reading no. = 2 State = NORMAL Alarm = 0", output)
+        self.assertNotIn("Fall detected.", output)
+
+    def test_free_gate_confirmation_keeps_recording_until_actual_fall(self):
+        _, samples, _, events, output, _ = self.run_recording(
+            [frame(1), SPIKE, CONFIRMED, frame(2), FALL, frame(99)], mode="free",
+        )
+        self.assertEqual([row["sample_number"] for row in samples], [1, 2])
+        self.assertEqual([row["event"] for row in events], ["SPIKE", "DISTURBANCE_CONFIRMED", "POSSIBLE_FALL"])
+        self.assertEqual([row["parse_valid"] for row in events], [1, 1, 1])
+        self.assertEqual(output.count("Event=DISTURBANCE_CONFIRMED"), 1)
+        self.assertEqual(output.count("Fall detected."), 1)
+
+    def test_unknown_gate_evidence_is_not_erased_by_returning_to_ready(self):
+        _, _, run, events, output, _ = self.run_recording([frame(1), SPIKE, UNKNOWN, READY])
+        self.assertEqual(run["observed_verdict"], "OBSERVATION_INCOMPLETE")
+        self.assertEqual([row["parse_valid"] for row in events], [1, 1, 1])
+        self.assertIn("reading no. = 1 State = WARMUP Alarm = 0", output)
+        self.assertIn("reading no. = 1 State = NORMAL Alarm = 0", output)
 
     def test_free_saves_final_sample_and_stops_on_fall(self):
         result, samples, _, events, output, _ = self.run_recording([frame(1), NORMAL, SPIKE, frame(2), FALL, frame(99)], mode="free")

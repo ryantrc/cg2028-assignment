@@ -27,13 +27,21 @@ The previous mixed dataset is also preserved in the
 
 ## Start and name a recording
 
-1. Run/resume the existing Prototype 1 firmware on the board in CubeIDE. It
-   prints `Magnitude`, `MagnitudeSlope` and `DETECTOR` messages. This recorder
-   update changes Python only; no additional firmware upload is needed if
-   Prototype 1 is already installed. Reset the board between tests to clear a
-   previous latched alarm.
+1. Rebuild and flash `CG2028_Assignment` with Prototype 2 in CubeIDE, then
+   resume it. It prints `Magnitude`, `MagnitudeSlope` and `DETECTOR` messages.
+   Reset the board between tests to clear a previous latched alarm. This
+   firmware change adds the baseline comparison described in the
+   [Prototype 2 guide](../docs/prototype-2.md); updating Python alone does not
+   install it on the board.
 2. Close `screen` or any other program using the board's serial port.
 3. From the repository root (`cg2028-Assignment`), choose a command below.
+
+Wait for `READY` (`State=NORMAL`, `Alarm=0`) before the intended event. Startup
+needs roughly five seconds of valid readings: two seconds for filter settling,
+then three seconds of baseline activity. Readings can still be recorded during
+warmup; a timed recording includes that waiting time. Sampling remains 100 ms,
+baud remains 115200, and the EWMA remains 25%. Existing recordings and recording
+mode destinations are unchanged.
 
 For a labelled test:
 
@@ -158,7 +166,7 @@ Start with these fields:
 | `verdict_source` | `FIRMWARE_EVENT` for explicit decisions, `FIRMWARE_STATUS` for observed alarm state, `FIRMWARE_EVENT_AND_STATUS` when both are needed, `FIRMWARE_DIAGNOSTICS` for other usable status, or `NONE`/`NOT_RECORDED`. |
 | `recording_status` | `OPEN` while active or left unfinished; `FINISHED` after the recorder saves its end metadata. |
 | `sample_count`, `started_at_utc`, `ended_at_utc`, `stop_reason` | Saved reading count and recording boundaries; count/end fields are finalized when the run closes. |
-| `spike_count`, `possible_fall_count`, `near_fall_count`, `uncertain_count` | Counts of explicit firmware events, not counts of repeated status messages. |
+| `spike_count`, `possible_fall_count`, `near_fall_count`, `uncertain_count` | Counts of explicit firmware events, not counts of repeated status messages. In Prototype 2, a spike is provisional and may be rejected by the baseline comparison. |
 | `sensor_health`, `fault_diagnostic_count` | Observed faults remain visible even when the run has a fall or near-fall verdict. |
 | `diagnostic_coverage`, `invalid_diagnostic_count` | Whether diagnostics were received and whether any failed parsing; `OBSERVED` does not guarantee that every message was captured. |
 | `last_state`, `last_alarm`, `last_sensors` | Last usable board status; this can differ from an earlier decision summarized for the run. |
@@ -179,10 +187,10 @@ plus `run_id`, `legacy_record_id`, `expected_verdict` and `port`.
 | `PREEXISTING_LATCHED_ALARM` | The first usable detector message already reported a latched alarm, without an explicit new fall event. Reset the board before a fresh trial. |
 | `LATCHED_ALARM_OBSERVED` | A later status reported a latched alarm, but the explicit event was not captured. The alarm's onset is not established by the recording. |
 | `SENSOR_FAULT` | The latest detector status reports a sensor fault, with no explicit fall/near-fall decision recorded. |
-| `OBSERVATION_INCOMPLETE` | A triggered observation did not produce a recorded decision before the run ended, or its outcome was interrupted. |
+| `OBSERVATION_INCOMPLETE` | A triggered observation did not produce a recorded decision before the run ended, its outcome was interrupted, or `DISTURBANCE_UNKNOWN` reported insufficient evidence. |
 | `UNCERTAIN` | The detector was still uncertain when recording ended. |
-| `WARMUP_INCOMPLETE` | Recording ended while the detector was warming up. |
-| `NO_EVENT_OBSERVED` | Healthy normal-monitoring status was observed without a detected event; this does not prove that the activity was normal. |
+| `WARMUP_INCOMPLETE` | Recording ended during startup warmup without an unresolved earlier candidate. |
+| `NO_EVENT_OBSERVED` | Healthy normal-monitoring status was observed without a fall/near-fall decision or unresolved candidate; this can include a rejected disturbance and does not prove normal activity. |
 | `NO_DETECTOR_DATA` | No usable detector diagnostics were received. This is not a normal result. |
 | `NOT_RECORDED` | Historical measurements exist, but their live detector output was not saved. |
 
@@ -192,6 +200,23 @@ latched-alarm status but no explicit possible-fall event produces
 `NEAR_FALL_WITH_LATCHED_ALARM`, with source `FIRMWARE_EVENT_AND_STATUS`.
 Faults remain recorded separately even if a decision was captured. The detailed
 timeline is available when a single summary cannot explain everything that happened.
+
+Prototype 2 adds three events without changing recording destinations or CSV
+columns. `DISTURBANCE_CONFIRMED` keeps the candidate in `OBSERVING`;
+`DISTURBANCE_REJECTED` returns it to `NORMAL` and is never counted as a near-fall.
+`DISTURBANCE_UNKNOWN` returns the board to `WARMUP` because the comparison lacked
+adequate evidence. That unknown candidate remains `OBSERVATION_INCOMPLETE` in
+the saved summary even after `READY`, unless an explicit fall/near-fall result
+takes precedence. A later candidate after a rejection can also leave the run
+incomplete if it does not resolve before recording ends.
+
+Confirmation/rejection messages include `BaselineMSD`, `EventMSD` and
+`IncreaseRatio`. They are retained in the original diagnostic lines in `events`
+(test mode) or `detector_events` (free mode), rather than new measurement CSV
+columns. Both provisional and confirmed candidates use `State=OBSERVING`, so
+inspect the events to determine whether the comparison passed. See
+[Prototype 2's baseline comparison](../docs/prototype-2.md#the-baseline-comparison)
+for the windows, threshold and unchanged eight-second decision timing.
 
 Observed verdicts come from received firmware messages, **not from your expected
 verdict, activity label or an offline replay of the readings**. A periodic latched-alarm status is

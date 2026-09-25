@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """Replay saved readings through the actual C detector, without changing data.
 
-Uses Python's standard library and a native C compiler. For the existing 35
-calibration recordings, add --check-calibration. These recordings informed the
-prototype; matching their labels is not an independent accuracy measurement.
+Uses Python's standard library and a native C compiler. To check the original
+35 calibration recordings within a larger database, add --check-calibration.
+These recordings informed the prototype; matching their labels is not an
+independent accuracy measurement.
 
 Example:
     python3 tools/replay_fall_detector.py --check-calibration
@@ -11,7 +12,9 @@ Example:
 
 import argparse
 import csv
+import hashlib
 import io
+import json
 import math
 from pathlib import Path
 import sqlite3
@@ -51,8 +54,20 @@ static const char *event_name(FallDetectorEvent event)
     case FALL_EVENT_UNCERTAIN: return "UNCERTAIN";
     case FALL_EVENT_SENSOR_FAULT: return "SENSOR_FAULT";
     case FALL_EVENT_RESTARTED: return "RESTARTED";
+    case FALL_EVENT_DISTURBANCE_CONFIRMED: return "DISTURBANCE_CONFIRMED";
+    case FALL_EVENT_DISTURBANCE_REJECTED: return "DISTURBANCE_REJECTED";
+    case FALL_EVENT_DISTURBANCE_UNKNOWN: return "DISTURBANCE_UNKNOWN";
     default: return "UNKNOWN";
     }
+}
+
+static void output(uint64_t session, uint64_t record, uint32_t tick,
+                   const char *event, const FallDetector *detector)
+{
+    printf("%" PRIu64 ",%" PRIu64 ",%" PRIu32 ",%s,%s,%d,%.17g,%.17g,%.17g\n",
+           session, record, tick, event, FallDetector_StateName(detector->state),
+           detector->fall_latched ? 1 : 0, detector->candidate_baseline_mean,
+           detector->event_accel_msd_mean, detector->disturbance_ratio);
 }
 
 int main(void)
@@ -60,14 +75,19 @@ int main(void)
     FallDetector detector;
     FallDetector_Init(&detector);
     uint64_t session = 0;
+    uint64_t last_record = 0;
+    uint32_t last_tick = 0;
+    bool have_sample = false;
     char command;
-    puts("session_id,record_id,board_time_ms,event,state,fall_latched");
+    puts("session_id,record_id,board_time_ms,event,state,fall_latched,baseline_mean,event_mean,disturbance_ratio");
     while (scanf(" %c", &command) == 1)
     {
         if (command == 'R')
         {
+            if (have_sample) output(session, last_record, last_tick, "END", &detector);
             if (scanf(" %" SCNu64, &session) != 1) return 2;
             FallDetector_Init(&detector);
+            have_sample = false;
             continue;
         }
         if (command != 'S') return 2;
@@ -84,11 +104,13 @@ int main(void)
             .gyro_magnitude = gyro_magnitude
         };
         FallDetectorEvent event = FallDetector_Update(&detector, &input);
+        last_record = record;
+        last_tick = tick;
+        have_sample = true;
         if (event != FALL_EVENT_NONE)
-            printf("%" PRIu64 ",%" PRIu64 ",%" PRIu32 ",%s,%s,%d\n",
-                   session, record, tick, event_name(event),
-                   FallDetector_StateName(detector.state), detector.fall_latched ? 1 : 0);
+            output(session, record, tick, event_name(event), &detector);
     }
+    if (have_sample) output(session, last_record, last_tick, "END", &detector);
     return ferror(stdin) ? 2 : 0;
 }
 '''
@@ -104,8 +126,26 @@ def load_recordings(path):
     try:
         # Both queries must see the same snapshot if a logger is appending.
         connection.execute("BEGIN")
-        sessions = [dict(row) for row in connection.execute("SELECT * FROM sessions ORDER BY id")]
-        readings = [dict(row) for row in connection.execute("SELECT * FROM readings ORDER BY session_id, record_id")]
+        objects = {row[0] for row in connection.execute("SELECT name FROM sqlite_master")}
+        if {"sessions", "readings"} <= objects:
+            sessions = [dict(row) for row in connection.execute("SELECT * FROM sessions ORDER BY id")]
+            readings = [dict(row) for row in connection.execute("SELECT * FROM readings ORDER BY session_id, record_id")]
+            for session in sessions:
+                session["source_kind"] = "calibration_session"
+        elif {"runs", "test_readings"} <= objects:
+            sessions = []
+            for row in connection.execute("SELECT * FROM runs ORDER BY run_id"):
+                run = dict(row)
+                run.update(id=run["run_id"], source_kind="test_run", source_session_id=run["session_id"])
+                sessions.append(run)
+            readings = []
+            for row in connection.execute("SELECT * FROM test_readings ORDER BY run_id,record_id"):
+                sample = dict(row)
+                sample["source_session_id"] = sample["session_id"]
+                sample["session_id"] = sample["run_id"]
+                readings.append(sample)
+        else:
+            raise ValueError("Database needs sessions/readings or runs/test_readings")
     finally:
         connection.close()
     return sessions, readings
@@ -186,20 +226,30 @@ def replay(sessions, readings, compiler="cc"):
     for event in events:
         for field in ("session_id", "record_id", "board_time_ms", "fall_latched"):
             event[field] = int(event[field])
+        for field in ("baseline_mean", "event_mean", "disturbance_ratio"):
+            event[field] = float(event[field])
+        if event["event"] == "END":
+            diagnostics[event["session_id"]].update(final_state=event["state"],
+                                                   final_fall_latched=event["fall_latched"],
+                                                   last_board_time_ms=event["board_time_ms"])
+    events = [event for event in events if event["event"] != "END"]
     return events, diagnostics
 
 
 def check_calibration(sessions, events, diagnostics):
     """Check known examples only; never advertise these counts as accuracy."""
     identifiers = {session["id"] for session in sessions}
-    if identifiers != set(range(1, 36)):
-        raise ValueError("--check-calibration requires exactly the current sessions 1 through 35.")
+    if not set(range(1, 36)) <= identifiers or any(session.get("source_kind") == "test_run" for session in sessions):
+        raise ValueError("--check-calibration requires original calibration sessions 1 through 35 (additional sessions allowed).")
     failures = []
-    for sid in sorted(identifiers):
+    for sid in range(1, 36):
         found = [event for event in events if event["session_id"] == sid]
         spikes = [event for event in found if event["event"] == "SPIKE"]
         decisions = [event for event in found if event["event"] in DECISION_EVENTS]
         expected = [] if sid <= 20 else ["FALL"] if sid <= 30 else ["NEAR_FALL"]
+        confirmed = [event for event in found if event["event"] == "DISTURBANCE_CONFIRMED"]
+        if len(confirmed) != len(expected):
+            failures.append(f"session {sid}: disturbance confirmations={len(confirmed)}")
         if [event["event"] for event in decisions] != expected or len(spikes) != len(expected):
             failures.append(f"session {sid}: spikes={len(spikes)}, decisions={[event['event'] for event in decisions]}")
         if diagnostics[sid]["invalid"] or any(event["event"] == "SENSOR_FAULT" for event in found):
@@ -214,26 +264,38 @@ def check_calibration(sessions, events, diagnostics):
 
 def print_summary(sessions, events, diagnostics):
     print("Actual C detector replay (saved EWMA metrics; SQLite opened read-only)")
-    print("Session  Rows  Gaps  Invalid  Spikes  Outcome (delay after first crossing)")
+    print("Session/run  Rows Gaps Invalid Spikes Confirm Reject Unknown  Outcome; final state")
     for session in sessions:
         sid = session["id"]
         found = [event for event in events if event["session_id"] == sid]
         spikes = [event for event in found if event["event"] == "SPIKE"]
         decisions = [event for event in found if event["event"] in DECISION_EVENTS]
+        confirmed = sum(event["event"] == "DISTURBANCE_CONFIRMED" for event in found)
+        rejected = sum(event["event"] == "DISTURBANCE_REJECTED" for event in found)
+        unknown = sum(event["event"] == "DISTURBANCE_UNKNOWN" for event in found)
         outcome = "NO EVENT"
         if decisions:
             outcome = " -> ".join(event["event"] for event in decisions)
             if spikes:
                 delay = (decisions[-1]["board_time_ms"] - spikes[0]["board_time_ms"]) & UINT32_MASK
                 outcome += f" ({delay / 1000:.3f} s)"
-        elif spikes:
+        elif diagnostics[sid].get("final_state") == "OBSERVING":
             outcome = "OBSERVATION INCOMPLETE"
+        elif unknown or diagnostics[sid].get("final_state") == "WARMUP":
+            outcome = "INSUFFICIENT HISTORY/EVIDENCE"
+        elif rejected:
+            outcome = "DISTURBANCES REJECTED"
+        elif spikes:
+            outcome = "CANDIDATE CANCELLED"
         if any(event["event"] == "SENSOR_FAULT" for event in found):
             outcome += "; SENSOR_FAULT"
         info = diagnostics[sid]
-        print(f"{sid:7d} {info['rows']:5d} {info['gaps']:5d} {info['invalid']:8d} {len(spikes):7d}  {outcome}")
+        print(f"{sid:11d} {info['rows']:5d} {info['gaps']:4d} {info['invalid']:7d} {len(spikes):6d} "
+              f"{confirmed:7d} {rejected:6d} {unknown:7d}  {outcome}; {info.get('final_state', 'NO SAMPLES')}")
     print("Gaps restart detector warmup; stale prefixes are not joined to later samples.")
     print("Replay uses saved rounded metrics and cannot reproduce sensor reads or EWMA resets.")
+    print("Every capture starts with fresh state; pre-capture detector history and inherited alarms are unavailable.")
+    print("A candidate still OBSERVING at the last sample has no final verdict in this replay.")
     print("These recordings informed the thresholds: this is a calibration check, not accuracy validation.")
 
 
@@ -243,9 +305,24 @@ def main(argv=None):
     parser.add_argument("--cc", default="cc", help="Native C compiler executable (default: cc)")
     parser.add_argument("--check-calibration", action="store_true", help="Assert the expected results for current sessions 1–35")
     parser.add_argument("--events", action="store_true", help="Also print each event with its original database record ID and board tick")
+    parser.add_argument("--session", type=int, action="append", help="Include only these calibration session IDs; repeatable")
+    parser.add_argument("--run-id", type=int, action="append", help="Include only these verdict test run IDs; repeatable")
+    parser.add_argument("--json", type=Path, help="Write replay events, final states and input metadata as a JSON report")
     args = parser.parse_args(argv)
     try:
         sessions, readings = load_recordings(args.db)
+        if args.session and args.run_id:
+            raise ValueError("Choose --session or --run-id")
+        selected = args.run_id or args.session
+        if selected:
+            is_test = bool(sessions and sessions[0].get("source_kind") == "test_run")
+            if bool(args.run_id) != is_test:
+                raise ValueError("Use --run-id with verdict databases and --session with measurement databases")
+            unknown = set(selected) - {session["id"] for session in sessions}
+            if unknown:
+                raise ValueError(f"Unknown recording IDs: {sorted(unknown)}")
+            sessions = [session for session in sessions if session["id"] in selected]
+            readings = [row for row in readings if row["session_id"] in selected]
         events, diagnostics = replay(sessions, readings, args.cc)
         print_summary(sessions, events, diagnostics)
         if args.events:
@@ -255,6 +332,19 @@ def main(argv=None):
         if args.check_calibration:
             check_calibration(sessions, events, diagnostics)
             print("Calibration check passed: 20 no-event sessions, 10 FALL patterns, 5 NEAR_FALL patterns.")
+        if args.json:
+            args.json = args.json.expanduser()
+            if args.json.resolve() == args.db.expanduser().resolve():
+                raise ValueError("JSON output must not replace the input database")
+            args.json.parent.mkdir(parents=True, exist_ok=True)
+            # Never overwrite an existing analysis or any recording file.
+            with args.json.open("x", encoding="utf-8") as output:
+                json.dump({"database": str(args.db.resolve()),
+                           "header_sha256": hashlib.sha256((HEADER_DIRECTORY / "fall_detector.h").read_bytes()).hexdigest(),
+                           "sessions": sessions, "events": events, "diagnostics": diagnostics,
+                           "limitations": "Fresh detector per capture; stored rounded metrics; calibration only, not independent validation."},
+                          output, indent=2, allow_nan=False)
+                output.write("\n")
     except (OSError, sqlite3.Error, ValueError) as error:
         parser.exit(1, f"Replay error: {error}\n")
     return 0

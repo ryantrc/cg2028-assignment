@@ -5,18 +5,20 @@ Python packages. macOS or Linux is required for serial recording. **Choose
 exactly one mode:** `--test`, `--free`, or `--calibration`. There is no default
 recording mode; the old `--dataset` option has been removed.
 
-This update changes the Python recorder only. No firmware reflash is needed if
-the board already runs Prototype 1. Sampling remains **100 ms**, baud remains
-**115200**, and the existing Magnitude/MSD calculations are unchanged. Old `Avg`
-serial output is still rejected explicitly.
+**Prototype 2 requires rebuilding and flashing `CG2028_Assignment` in CubeIDE.**
+It adds a comparison with recent baseline activity before a spike enters the
+fall/near-fall observation. Sampling remains **100 ms**, baud remains **115200**,
+and the existing **25% EWMA**, Magnitude/MSD calculations, recording modes and
+file destinations are unchanged. Old `Avg` serial output is still rejected
+explicitly.
 
-The [Prototype 1 guide](../docs/prototype-1.md) explains the detector, LED behavior
+The [Prototype 2 guide](../docs/prototype-2.md) explains the detector, LED behavior
 and board-reset procedure. The recording mode affects where data is stored and
 what labels you must provide; it does not reconfigure the detector.
 
 ## Start a recording
 
-1. Run `CG2028_Assignment` with Prototype 1 on the board and click Resume in
+1. Build and flash `CG2028_Assignment` with Prototype 2, and click Resume in
    CubeIDE if execution is paused at `main()`. Reset the board between tests so
    a previous latched fall alarm does not carry into the next recording.
 2. Close `screen` or another serial viewer. For a named screen session, use
@@ -30,6 +32,12 @@ what labels you must provide; it does not reconfigure the detector.
    python3 tools/record_activity.py --calibration --name walking-slowly \
      --notes "Calibration: consistent hand movement"
    ```
+
+Before the intended event, wait for `READY` (`State=NORMAL`, `Alarm=0`). Startup
+requires roughly five seconds of valid data: two seconds for filter settling,
+then three seconds of baseline activity. The recorder can save readings during
+warmup, and that time counts toward a timed run. Use `--duration 60` for a test
+that needs more preparation or observation time.
 
 The first command records a test named `fall-test-3-near-fall`, with
 `expected_verdict=near-fall`. The actual firmware verdict is stored separately.
@@ -98,7 +106,7 @@ The counter starts at zero for each run and counts complete saved sensor samples
 not the board's lifetime sample number. State and alarm show the latest valid
 firmware diagnostic; both show `UNKNOWN` until the first one arrives. `Alarm = 1`
 means the board's fall alarm is latched. Reset the board before a new trial and
-check for `State = NORMAL Alarm = 0` before performing your movement.
+wait for `READY` / `State = NORMAL Alarm = 0` before the intended event.
 
 Routine `STATUS` messages update this line instead of scrolling the Terminal.
 Detector events such as spikes, fall/near-fall decisions and sensor faults, plus
@@ -155,6 +163,14 @@ updates from the messages received, independently of your expected label.
 An explicit `POSSIBLE_FALL` or `NEAR_FALL` is recorded, both together produce
 `MIXED_DECISIONS`, and an unconfirmed latched-alarm status is distinguished from a
 new event. Incomplete observation, uncertainty and sensor faults are retained.
+In Prototype 2, `SPIKE` is provisional. `DISTURBANCE_REJECTED` means the
+baseline comparison did not qualify the candidate; it is not a near-fall.
+`DISTURBANCE_UNKNOWN` means the comparison lacked usable evidence, and the
+detector returns to warmup. An unknown candidate remains
+`OBSERVATION_INCOMPLETE` in the saved summary even after a later `READY`, unless
+an explicit decision takes precedence. A rejected candidate can leave
+`NO_EVENT_OBSERVED`; that is not proof of ordinary activity. See the
+[gate and timing explanation](../docs/prototype-2.md#the-baseline-comparison).
 See the [verdict fields and definitions](../data/README.md#reading-the-prototype-verdicts).
 
 `run_id` links each test's `runs`, `test_samples` and `events` rows in the same
@@ -316,7 +332,7 @@ a large movement:
 `0, 0, 10, 0, 0` has zero fitted slope at equally spaced times. Magnitude alone
 cannot identify a fall; ordinary handling can also cause large readings. A recent
 peak measurement could be added later. The experimental fall-decision logic is
-described in the [Prototype 1 guide](../docs/prototype-1.md).
+described in the [Prototype 2 guide](../docs/prototype-2.md).
 
 ## Useful commands
 

@@ -72,7 +72,8 @@ int main(void)
     uint32_t last_report_ms = HAL_GetTick() - 1000U;
     uint32_t previous_read_ms = 0;
     bool has_previous_read = false;
-    FallDetector detector;
+    /* Keep the three-second history buffer out of the main call stack. */
+    static FallDetector detector;
     FallDetector_Init(&detector);
 
     while (1)
@@ -223,10 +224,11 @@ int main(void)
         MotionMetrics gyro_metrics = MotionMetrics_Update(
             &gyro_metrics_state, gyro_dps, sample_time_ms);
 
-        /* Prototype 1: first acceleration-MSD crossing starts the timer.
-         * Sampling continues during the eight seconds. The helper checks
-         * [5,6), [6,7), [7,8) second averages, extending one block at a time
-         * if uncertain. Both sensors must agree; a fall stays latched. */
+        /* Prototype 2: a crossing starts a provisional candidate. Its first
+         * two seconds must exceed the preceding three-second MSD baseline by
+         * fourfold (with a noise floor). Qualified candidates retain the
+         * original [5,6), [6,7), [7,8) checks, extending if uncertain.
+         * Both sensors must agree; a fall stays latched. */
         detector_input.msd_valid = accel_metrics.msd_valid && gyro_metrics.msd_valid;
         detector_input.accel_msd = accel_metrics.msd;
         detector_input.gyro_msd = gyro_metrics.msd;
@@ -308,7 +310,13 @@ static void ReportDetectorStatus(const FallDetector *detector, FallDetectorEvent
     case FALL_EVENT_READY:
         name = "READY"; message = "Monitoring movement."; break;
     case FALL_EVENT_SPIKE:
-        name = "SPIKE"; message = "Sharp movement; observing for 8 seconds."; break;
+        name = "SPIKE"; message = "Provisional spike; checking two-second disturbance."; break;
+    case FALL_EVENT_DISTURBANCE_CONFIRMED:
+        name = "DISTURBANCE_CONFIRMED"; message = "Unusual disturbance; continuing original observation."; break;
+    case FALL_EVENT_DISTURBANCE_REJECTED:
+        name = "DISTURBANCE_REJECTED"; message = "Increase below threshold; monitoring resumes."; break;
+    case FALL_EVENT_DISTURBANCE_UNKNOWN:
+        name = "DISTURBANCE_UNKNOWN"; message = "Insufficient history/coverage; collecting baseline (~5 seconds)."; break;
     case FALL_EVENT_NEAR_FALL:
         name = "NEAR_FALL"; message = "Continued movement; monitoring resumes."; break;
     case FALL_EVENT_FALL:
@@ -318,15 +326,25 @@ static void ReportDetectorStatus(const FallDetector *detector, FallDetectorEvent
     case FALL_EVENT_SENSOR_FAULT:
         name = "SENSOR_FAULT"; message = "Invalid sensor data; check connection and reset board."; break;
     case FALL_EVENT_RESTARTED:
-        name = "RESTARTED"; message = "Sampling interrupted/recovered; warming up for 2 seconds."; break;
+        name = "RESTARTED"; message = "Sampling interrupted/recovered; collecting baseline (~5 seconds)."; break;
     case FALL_EVENT_NONE:
         break;
     }
-    char text[256];
+    char gate_metrics[112] = "";
+    if (event == FALL_EVENT_DISTURBANCE_CONFIRMED ||
+        event == FALL_EVENT_DISTURBANCE_REJECTED)
+    {
+        snprintf(gate_metrics, sizeof(gate_metrics),
+                 " BaselineMSD=%.6e EventMSD=%.6e IncreaseRatio=%.6e",
+                 detector->candidate_baseline_mean, detector->event_accel_msd_mean,
+                 detector->disturbance_ratio);
+    }
+    char text[384];
     snprintf(text, sizeof(text),
-             "DETECTOR TimeMs=%lu State=%s Alarm=%u Sensors=%s Event=%s %s\r\n",
+             "DETECTOR TimeMs=%lu State=%s Alarm=%u Sensors=%s Event=%s %s%s\r\n",
              (unsigned long)now_ms, FallDetector_StateName(detector->state),
-             detector->fall_latched ? 1U : 0U, sensors_valid ? "OK" : "FAULT", name, message);
+             detector->fall_latched ? 1U : 0U, sensors_valid ? "OK" : "FAULT", name, message,
+             gate_metrics);
     UART_Send(text);
 }
 

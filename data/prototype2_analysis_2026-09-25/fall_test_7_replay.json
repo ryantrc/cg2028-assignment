@@ -1,0 +1,116 @@
+{
+  "database": "/Users/ryantan/MyWork/CG2028workspace/cg2028-Assignment/data/prototype_verdicts.sqlite3",
+  "header_sha256": "635a5eb2d3f8578abff7c83c6fdf552e436e405522aaac6203756de92126f451",
+  "sessions": [
+    {
+      "run_id": 8,
+      "source_database": "/Users/ryantan/MyWork/CG2028workspace/cg2028-Assignment/data/prototype_verdicts.sqlite3",
+      "session_id": 43,
+      "activity": "fall-test-7-normal",
+      "notes": "",
+      "started_at_utc": "2026-09-25T08:41:41.122+00:00",
+      "ended_at_utc": "2026-09-25T08:42:11.135+00:00",
+      "recording_status": "FINISHED",
+      "sample_count": 297,
+      "stop_reason": "DURATION",
+      "historical": 0,
+      "observed_verdict": "NEAR_FALL",
+      "verdict_source": "FIRMWARE_EVENT",
+      "diagnostic_count": 30,
+      "valid_diagnostic_count": 30,
+      "invalid_diagnostic_count": 0,
+      "status_count": 27,
+      "event_count": 3,
+      "spike_count": 2,
+      "possible_fall_count": 0,
+      "near_fall_count": 1,
+      "uncertain_count": 0,
+      "sensor_fault_count": 0,
+      "fault_diagnostic_count": 0,
+      "restarted_count": 0,
+      "first_diagnostic_at_utc": "2026-09-25T08:41:41.616+00:00",
+      "last_diagnostic_at_utc": "2026-09-25T08:42:10.272+00:00",
+      "first_board_time_ms": 13168,
+      "last_board_time_ms": 41905,
+      "first_state": "NORMAL",
+      "last_state": "OBSERVING",
+      "last_alarm": 0,
+      "last_sensors": "OK",
+      "diagnostic_coverage": "OBSERVED",
+      "sensor_health": "OK_OBSERVED",
+      "expected_verdict": "normal",
+      "port": "/dev/cu.usbmodem1102",
+      "id": 8,
+      "source_kind": "test_run",
+      "source_session_id": 43
+    }
+  ],
+  "events": [
+    {
+      "session_id": 8,
+      "record_id": 1964,
+      "board_time_ms": 17831,
+      "event": "READY",
+      "state": "NORMAL",
+      "fall_latched": 0,
+      "baseline_mean": 0.0,
+      "event_mean": 0.0,
+      "disturbance_ratio": 0.0
+    },
+    {
+      "session_id": 8,
+      "record_id": 2003,
+      "board_time_ms": 21768,
+      "event": "SPIKE",
+      "state": "OBSERVING",
+      "fall_latched": 0,
+      "baseline_mean": 1.7171065634482756,
+      "event_mean": 6.065177,
+      "disturbance_ratio": 0.0
+    },
+    {
+      "session_id": 8,
+      "record_id": 2023,
+      "board_time_ms": 23788,
+      "event": "DISTURBANCE_REJECTED",
+      "state": "NORMAL",
+      "fall_latched": 0,
+      "baseline_mean": 1.7171065634482756,
+      "event_mean": 1.9134154075,
+      "disturbance_ratio": 1.114325370498555
+    },
+    {
+      "session_id": 8,
+      "record_id": 2132,
+      "board_time_ms": 34775,
+      "event": "SPIKE",
+      "state": "OBSERVING",
+      "fall_latched": 0,
+      "baseline_mean": 1.6122422689655174,
+      "event_mean": 5.198586,
+      "disturbance_ratio": 0.0
+    },
+    {
+      "session_id": 8,
+      "record_id": 2152,
+      "board_time_ms": 36794,
+      "event": "DISTURBANCE_REJECTED",
+      "state": "NORMAL",
+      "fall_latched": 0,
+      "baseline_mean": 1.6122422689655174,
+      "event_mean": 1.685328109,
+      "disturbance_ratio": 1.0453317974856084
+    }
+  ],
+  "diagnostics": {
+    "8": {
+      "rows": 297,
+      "gaps": 0,
+      "invalid": 0,
+      "final_state": "NORMAL",
+      "final_fall_latched": 0,
+      "last_board_time_ms": 42635
+    }
+  },
+  "limitations": "Fresh detector per capture; stored rounded metrics; calibration only, not independent validation."
+}

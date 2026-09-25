@@ -64,6 +64,9 @@ EVENT_STATES = {
     "READY": "NORMAL", "SPIKE": "OBSERVING", "NEAR_FALL": "NORMAL",
     "POSSIBLE_FALL": "FALL_LATCHED", "UNCERTAIN": "UNCERTAIN",
     "RESTARTED": "WARMUP",
+    "DISTURBANCE_CONFIRMED": "OBSERVING",
+    "DISTURBANCE_REJECTED": "NORMAL",
+    "DISTURBANCE_UNKNOWN": "WARMUP",
 }
 EVENTS = frozenset((*EVENT_STATES, "STATUS", "SENSOR_FAULT"))
 DIAGNOSTIC = re.compile(
@@ -147,6 +150,37 @@ def parse_diagnostic(line):
     }
 
 
+def _observation_history(events):
+    """Track observed candidates without inventing missing firmware decisions.
+
+    A rejected Prototype 2 candidate is complete, even though it produced no
+    fall/near-fall verdict. A later rejection cannot explain an earlier candidate
+    whose resolution was missed. UNKNOWN explicitly leaves insufficient evidence
+    in this recording, even after the firmware has warmed up again.
+    """
+    candidate_open = unresolved = unknown = False
+    for diagnostic in events:
+        event, state = diagnostic["event"], diagnostic["state"]
+        if event == "DISTURBANCE_UNKNOWN":
+            unresolved = unknown = True
+            candidate_open = False
+        elif event in ("DISTURBANCE_REJECTED", "NEAR_FALL", "POSSIBLE_FALL"):
+            # Accept a resolution even if recording started after its SPIKE.
+            candidate_open = False
+        elif event == "SPIKE":
+            # A new SPIKE while one was open implies a missed resolution.
+            unresolved |= candidate_open
+            candidate_open = True
+        elif state in ("OBSERVING", "UNCERTAIN"):
+            # STATUS or CONFIRMED can reveal a candidate whose SPIKE was missed.
+            candidate_open = True
+        elif candidate_open:
+            # NORMAL/WARMUP/FAULT alone do not say how the candidate ended.
+            unresolved = True
+            candidate_open = False
+    return unresolved or candidate_open, unknown
+
+
 def _summary(historical, events):
     result = dict.fromkeys(COUNT_FIELDS, 0)
     result.update(dict.fromkeys(DETAIL_FIELDS))
@@ -188,6 +222,7 @@ def _summary(historical, events):
         "FAULT_PRESENT" if last["sensors"] == "FAULT" else
         "FAULT_RECOVERED" if result["fault_diagnostic_count"] else "OK_OBSERVED"
     )
+    unresolved, unknown = _observation_history(valid)
     # Explicit firmware decisions take priority and survive later health faults.
     fall, near = result["possible_fall_count"], result["near_fall_count"]
     if near and not fall and any(event["alarm"] for event in valid):
@@ -204,9 +239,11 @@ def _summary(historical, events):
         verdict, source = "OBSERVATION_INCOMPLETE", "FIRMWARE_DIAGNOSTICS"
     elif last["state"] == "UNCERTAIN":
         verdict, source = "UNCERTAIN", "FIRMWARE_DIAGNOSTICS"
+    elif unknown:
+        verdict, source = "OBSERVATION_INCOMPLETE", "FIRMWARE_DIAGNOSTICS"
     elif last["state"] == "WARMUP":
         verdict, source = "WARMUP_INCOMPLETE", "FIRMWARE_DIAGNOSTICS"
-    elif any(event["state"] in ("OBSERVING", "UNCERTAIN") for event in valid):
+    elif unresolved:
         verdict, source = "OBSERVATION_INCOMPLETE", "FIRMWARE_DIAGNOSTICS"
     else:
         # This means no decision was observed, not that the person was normal.

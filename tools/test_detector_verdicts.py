@@ -147,6 +147,123 @@ class VerdictRecorderTests(unittest.TestCase):
         self.assertEqual(self.row(run)["observed_verdict"], "OBSERVATION_INCOMPLETE")
         self.assertEqual(self.row(run)["near_fall_count"], 0)
 
+    def test_rejected_candidate_is_complete_without_a_near_fall(self):
+        run = self.start(activity="near-fall")
+        self.append(run, "SPIKE")
+        self.append(run, "DISTURBANCE_REJECTED", message="Baseline-relative gate failed.")
+        self.append(run)
+        self.recorder.finish_run(run, END, "DURATION", 300)
+        row = self.row(run)
+        self.assertEqual(row["observed_verdict"], "NO_EVENT_OBSERVED")
+        self.assertEqual(row["verdict_source"], "FIRMWARE_DIAGNOSTICS")
+        self.assertEqual((row["spike_count"], row["near_fall_count"], row["event_count"]), (1, 0, 2))
+        saved = self.recorder.connection.execute(
+            "SELECT event,message,parse_valid FROM events WHERE run_id=? ORDER BY event_id", (run,)
+        ).fetchall()
+        self.assertEqual(tuple(saved[1]), ("DISTURBANCE_REJECTED", "Baseline-relative gate failed.", 1))
+        self.assertEqual(self.csv_rows()[0]["observed_verdict"], "NO_EVENT_OBSERVED")
+
+    def test_rejection_can_resolve_candidate_when_spike_was_not_recorded(self):
+        for index, prefix in enumerate((None, "STATUS"), 1):
+            with self.subTest(prefix=prefix):
+                run = self.start(session=index)
+                if prefix:
+                    self.append(run, prefix, "OBSERVING")
+                self.append(run, "DISTURBANCE_REJECTED")
+                self.assertEqual(self.row(run)["observed_verdict"], "NO_EVENT_OBSERVED")
+
+    def test_rejected_candidate_does_not_resolve_a_later_candidate(self):
+        for index, event in enumerate(("SPIKE", "STATUS", "DISTURBANCE_CONFIRMED"), 1):
+            with self.subTest(event=event):
+                run = self.start(session=index)
+                self.append(run, "SPIKE")
+                self.append(run, "DISTURBANCE_REJECTED")
+                self.append(run, event, "OBSERVING")
+                self.assertEqual(self.row(run)["observed_verdict"], "OBSERVATION_INCOMPLETE")
+
+    def test_later_rejection_does_not_erase_earlier_missing_resolution(self):
+        for index, boundary in enumerate(("STATUS", "RESTARTED", "SPIKE"), 1):
+            with self.subTest(boundary=boundary):
+                run = self.start(session=index)
+                self.append(run, "SPIKE")
+                self.append(run, boundary)
+                if boundary != "SPIKE":
+                    self.append(run, "SPIKE")
+                self.append(run, "DISTURBANCE_REJECTED")
+                self.assertEqual(self.row(run)["observed_verdict"], "OBSERVATION_INCOMPLETE")
+
+    def test_status_only_normal_cannot_substitute_for_explicit_rejection(self):
+        run = self.start()
+        self.append(run, state="OBSERVING")
+        self.append(run)
+        self.assertEqual(self.row(run)["observed_verdict"], "OBSERVATION_INCOMPLETE")
+
+    def test_confirmed_disturbance_is_not_a_fall_or_near_fall_decision(self):
+        run = self.start()
+        self.append(run, "DISTURBANCE_CONFIRMED")
+        row = self.row(run)
+        self.assertEqual(row["observed_verdict"], "OBSERVATION_INCOMPLETE")
+        self.assertEqual((row["near_fall_count"], row["possible_fall_count"]), (0, 0))
+        self.append(run, "UNCERTAIN")
+        self.assertEqual(self.row(run)["observed_verdict"], "UNCERTAIN")
+
+    def test_unknown_remains_incomplete_after_ready_and_later_rejection(self):
+        for index, include_spike in enumerate((False, True), 1):
+            with self.subTest(include_spike=include_spike):
+                run = self.start(session=index)
+                if include_spike:
+                    self.append(run, "SPIKE")
+                self.append(run, "DISTURBANCE_UNKNOWN")
+                self.assertEqual(self.row(run)["observed_verdict"], "OBSERVATION_INCOMPLETE")
+                self.append(run, "READY")
+                self.assertEqual(self.row(run)["observed_verdict"], "OBSERVATION_INCOMPLETE")
+                self.append(run, "SPIKE")
+                self.append(run, "DISTURBANCE_REJECTED")
+                self.assertEqual(self.row(run)["observed_verdict"], "OBSERVATION_INCOMPLETE")
+
+    def test_invalid_rejection_does_not_resolve_candidate(self):
+        run = self.start()
+        self.append(run, "SPIKE")
+        self.assertFalse(self.recorder.append_line(
+            run, diagnostic("DISTURBANCE_REJECTED", "OBSERVING"), START
+        ))
+        self.append(run)
+        self.assertEqual(self.row(run)["observed_verdict"], "OBSERVATION_INCOMPLETE")
+        self.assertEqual(self.row(run)["invalid_diagnostic_count"], 1)
+
+    def test_new_gate_events_preserve_explicit_decision_priorities(self):
+        for index, (event, verdict) in enumerate((
+            ("NEAR_FALL", "NEAR_FALL"), ("POSSIBLE_FALL", "POSSIBLE_FALL"),
+        ), 1):
+            with self.subTest(event=event):
+                run = self.start(session=index)
+                self.append(run, "DISTURBANCE_UNKNOWN")
+                self.append(run, "READY")
+                self.append(run, "SPIKE")
+                self.append(run, "DISTURBANCE_CONFIRMED")
+                self.append(run, event)
+                self.assertEqual(self.row(run)["observed_verdict"], verdict)
+
+    def test_rejected_summary_and_old_firmware_history_survive_reopen(self):
+        old = self.start(session=1)
+        self.append(old, "SPIKE")
+        self.append(old)
+        self.recorder.finish_run(old, END, "DURATION", 300)
+        current = self.start(session=2)
+        self.append(current, "SPIKE")
+        self.append(current, "DISTURBANCE_REJECTED")
+        self.recorder.finish_run(current, END, "DURATION", 300)
+        before = [tuple(row) for row in self.recorder.connection.execute(
+            "SELECT * FROM events ORDER BY event_id"
+        )]
+        self.recorder.close()
+        self.recorder = VerdictRecorder(self.db, self.csv)
+        self.assertEqual(self.row(old)["observed_verdict"], "OBSERVATION_INCOMPLETE")
+        self.assertEqual(self.row(current)["observed_verdict"], "NO_EVENT_OBSERVED")
+        self.assertEqual([tuple(row) for row in self.recorder.connection.execute(
+            "SELECT * FROM events ORDER BY event_id"
+        )], before)
+
     def test_warmup_only_is_incomplete(self):
         run = self.start()
         self.append(run, state="WARMUP")
@@ -538,6 +655,22 @@ class VerdictRecorderTests(unittest.TestCase):
 
 
 class DiagnosticParserTests(unittest.TestCase):
+    def test_prototype_two_gate_events_require_their_declared_states(self):
+        for event, state in (
+            ("DISTURBANCE_CONFIRMED", "OBSERVING"),
+            ("DISTURBANCE_REJECTED", "NORMAL"),
+            ("DISTURBANCE_UNKNOWN", "WARMUP"),
+        ):
+            with self.subTest(event=event):
+                parsed = parse_diagnostic(diagnostic(event, state, message="Gate details retained."))
+                self.assertEqual((parsed["event"], parsed["state"], parsed["alarm"]), (event, state, 0))
+                self.assertEqual(parsed["message"], "Gate details retained.")
+                wrong_state = "NORMAL" if state != "NORMAL" else "OBSERVING"
+                with self.assertRaises(ValueError):
+                    parse_diagnostic(diagnostic(event, wrong_state))
+                with self.assertRaises(ValueError):
+                    parse_diagnostic(diagnostic(event, state, sensors="FAULT"))
+
     def test_message_is_preserved_and_ticks_are_unsigned(self):
         line = diagnostic("SPIKE", tick=0xFFFFFFFF, message="Sharp movement; observing for 8 seconds.")
         parsed = parse_diagnostic(line + "\r\n")

@@ -4,6 +4,7 @@
 #include <math.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <string.h>
 
 /* These thresholds apply to the existing 100 ms, EWMA-filtered samples.
  * Acceleration MSD is in (m/s^2)^2; gyro MSD is in (degrees/s)^2;
@@ -15,6 +16,20 @@
 #define FALL_QUIET_GYRO_MAGNITUDE 5.0
 #define FALL_WARMUP_MS 2000U
 #define FALL_MAX_SAMPLE_GAP_MS 250U
+#define FALL_BASELINE_MS 3000U
+#define FALL_DISTURBANCE_MS 2000U
+#define FALL_BASELINE_FLOOR_ACCEL_MSD 0.01
+#define FALL_DISTURBANCE_RATIO 4.0
+/* Coverage limits allow ordinary 100/101 ms timing jitter, not arbitrarily
+ * sparse observations. A fixed ring bounds memory use at the current 10 Hz. */
+#define FALL_BASELINE_CAPACITY 64U
+#define FALL_BASELINE_MIN_SAMPLES 28U
+#define FALL_BASELINE_MAX_FIRST_OFFSET_MS 150U
+#define FALL_BASELINE_MAX_LAST_AGE_MS 150U
+#define FALL_BASELINE_MIN_SPAN_MS 2750U
+#define FALL_DISTURBANCE_MIN_SAMPLES 18U
+#define FALL_DISTURBANCE_MIN_LAST_OFFSET_MS 1850U
+#define FALL_DISTURBANCE_MIN_SPAN_MS 1800U
 #define FALL_IGNORE_AFTER_TRIGGER_MS 5000U
 #define FALL_BLOCK_MS 1000U
 #define FALL_REQUIRED_BLOCKS 3U
@@ -48,7 +63,10 @@ typedef enum
     FALL_EVENT_FALL,
     FALL_EVENT_UNCERTAIN,
     FALL_EVENT_SENSOR_FAULT,
-    FALL_EVENT_RESTARTED
+    FALL_EVENT_RESTARTED,
+    FALL_EVENT_DISTURBANCE_CONFIRMED,
+    FALL_EVENT_DISTURBANCE_REJECTED,
+    FALL_EVENT_DISTURBANCE_UNKNOWN
 } FallDetectorEvent;
 
 typedef struct
@@ -85,6 +103,19 @@ typedef struct
     double block_accel_msd_mean;
     double block_gyro_msd_mean;
     double block_gyro_magnitude_mean;
+
+    uint32_t baseline_time_ms[FALL_BASELINE_CAPACITY];
+    double baseline_accel_msd[FALL_BASELINE_CAPACITY];
+    unsigned int baseline_count;
+    unsigned int baseline_next;
+    /* Freeze the pre-trigger mean; the continuously updated ring must not
+     * change the reference against which this candidate is judged. */
+    double candidate_baseline_mean;
+    double event_accel_msd_mean;
+    double disturbance_ratio;
+    unsigned int event_samples;
+    uint32_t event_last_offset_ms;
+    bool disturbance_confirmed;
 } FallDetector;
 
 typedef enum
@@ -125,14 +156,55 @@ static inline void FallDetector_ClearCandidate(FallDetector *detector)
     detector->completed_blocks = 0U;
     detector->quiet_blocks = 0U;
     detector->moving_blocks = 0U;
+    detector->candidate_baseline_mean = 0.0;
+    detector->event_accel_msd_mean = 0.0;
+    detector->disturbance_ratio = 0.0;
+    detector->event_samples = 0U;
+    detector->event_last_offset_ms = 0U;
+    detector->disturbance_confirmed = false;
     FallDetector_ClearBlock(detector);
 }
 
 static inline void FallDetector_Init(FallDetector *detector)
 {
-    *detector = (FallDetector){0};
+    memset(detector, 0, sizeof(*detector));
     detector->state = FALL_STATE_WARMUP;
     detector->trigger_armed = true;
+}
+
+/* Mean of [now-3000, now), evaluated BEFORE storing the current sample.
+ * Unsigned ages keep the window correct across the HAL tick rollover. */
+static inline bool FallDetector_Baseline(const FallDetector *detector,
+                                        uint32_t now_ms, double *mean)
+{
+    unsigned int count = 0U;
+    uint32_t oldest_age = 0U;
+    uint32_t newest_age = FALL_BASELINE_MS;
+    *mean = 0.0;
+    for (unsigned int i = 0U; i < detector->baseline_count; i++)
+    {
+        uint32_t age = (uint32_t)(now_ms - detector->baseline_time_ms[i]);
+        if (age == 0U || age > FALL_BASELINE_MS)
+            continue;
+        count++;
+        *mean += (detector->baseline_accel_msd[i] - *mean) / count;
+        if (age > oldest_age) oldest_age = age;
+        if (age < newest_age) newest_age = age;
+    }
+    return count >= FALL_BASELINE_MIN_SAMPLES &&
+        oldest_age >= FALL_BASELINE_MS - FALL_BASELINE_MAX_FIRST_OFFSET_MS &&
+        newest_age <= FALL_BASELINE_MAX_LAST_AGE_MS &&
+        oldest_age - newest_age >= FALL_BASELINE_MIN_SPAN_MS;
+}
+
+static inline void FallDetector_AddBaseline(FallDetector *detector,
+                                           const FallDetectorInput *input)
+{
+    detector->baseline_time_ms[detector->baseline_next] = input->time_ms;
+    detector->baseline_accel_msd[detector->baseline_next] = input->accel_msd;
+    detector->baseline_next = (detector->baseline_next + 1U) % FALL_BASELINE_CAPACITY;
+    if (detector->baseline_count < FALL_BASELINE_CAPACITY)
+        detector->baseline_count++;
 }
 
 static inline void FallDetector_StartWarmup(FallDetector *detector,
@@ -143,6 +215,8 @@ static inline void FallDetector_StartWarmup(FallDetector *detector,
     detector->warmup_started = true;
     detector->warmup_start_ms = time_ms;
     detector->trigger_armed = true;
+    detector->baseline_count = 0U;
+    detector->baseline_next = 0U;
 }
 
 static inline FallBlockClassification FallDetector_ClassifyBlock(
@@ -191,6 +265,8 @@ static inline FallDetectorEvent FallDetector_Update(
         detector->sensor_fault_active = true;
         detector->has_last_sample = false;
         detector->warmup_started = false;
+        detector->baseline_count = 0U;
+        detector->baseline_next = 0U;
         FallDetector_ClearCandidate(detector);
         if (!detector->fall_latched)
         {
@@ -207,6 +283,8 @@ static inline FallDetectorEvent FallDetector_Update(
         return FALL_EVENT_NONE; /* Only explicit initialization clears this. */
     }
 
+    bool duplicate_time = detector->has_last_sample &&
+        input->time_ms == detector->last_sample_ms;
     bool sample_gap = detector->has_last_sample &&
         (uint32_t)(input->time_ms - detector->last_sample_ms) > FALL_MAX_SAMPLE_GAP_MS;
     detector->last_sample_ms = input->time_ms;
@@ -224,6 +302,8 @@ static inline FallDetectorEvent FallDetector_Update(
         FallDetector_StartWarmup(detector, input->time_ms);
         return already_warming_up ? FALL_EVENT_NONE : FALL_EVENT_RESTARTED;
     }
+    if (duplicate_time)
+        return FALL_EVENT_NONE; /* Repeated timestamps cannot supply coverage. */
 
     if (detector->state == FALL_STATE_WARMUP)
     {
@@ -231,7 +311,16 @@ static inline FallDetectorEvent FallDetector_Update(
         {
             FallDetector_StartWarmup(detector, input->time_ms);
         }
-        if ((uint32_t)(input->time_ms - detector->warmup_start_ms) >= FALL_WARMUP_MS)
+        uint32_t elapsed_ms = (uint32_t)(input->time_ms - detector->warmup_start_ms);
+        if (elapsed_ms < FALL_WARMUP_MS)
+            return FALL_EVENT_NONE;
+
+        /* Do not build the baseline from the EWMA's startup transient. Until
+         * a complete baseline exists, movement is unknown, not dismissed. */
+        double baseline_mean;
+        bool baseline_valid = FallDetector_Baseline(detector, input->time_ms, &baseline_mean);
+        FallDetector_AddBaseline(detector, input);
+        if (elapsed_ms >= FALL_WARMUP_MS + FALL_BASELINE_MS && baseline_valid)
         {
             detector->state = FALL_STATE_NORMAL;
             return FALL_EVENT_READY;
@@ -239,8 +328,17 @@ static inline FallDetectorEvent FallDetector_Update(
         return FALL_EVENT_NONE;
     }
 
+    double baseline_mean;
+    bool baseline_valid = FallDetector_Baseline(detector, input->time_ms, &baseline_mean);
+    FallDetector_AddBaseline(detector, input);
+
     if (detector->state == FALL_STATE_NORMAL)
     {
+        if (!baseline_valid)
+        {
+            FallDetector_StartWarmup(detector, input->time_ms);
+            return FALL_EVENT_DISTURBANCE_UNKNOWN;
+        }
         if (!detector->trigger_armed)
         {
             /* One prolonged high reading must not trigger repeated trials. */
@@ -255,17 +353,54 @@ static inline FallDetectorEvent FallDetector_Update(
             FallDetector_ClearCandidate(detector);
             detector->candidate_start_ms = input->time_ms;
             detector->block_start_ms = input->time_ms + FALL_IGNORE_AFTER_TRIGGER_MS;
+            detector->candidate_baseline_mean = baseline_mean;
+            detector->event_accel_msd_mean = input->accel_msd;
+            detector->event_samples = 1U;
             detector->state = FALL_STATE_OBSERVING;
             return FALL_EVENT_SPIKE;
         }
         return FALL_EVENT_NONE;
     }
 
-    /* Later spikes leave the original candidate time unchanged. The first
-     * five seconds allow the abrupt movement and EWMA transient to settle. */
+    uint32_t candidate_age_ms = (uint32_t)(input->time_ms - detector->candidate_start_ms);
+    if (detector->state == FALL_STATE_OBSERVING && !detector->disturbance_confirmed)
+    {
+        if (candidate_age_ms < FALL_DISTURBANCE_MS)
+        {
+            detector->event_samples++;
+            detector->event_last_offset_ms = candidate_age_ms;
+            detector->event_accel_msd_mean +=
+                (input->accel_msd - detector->event_accel_msd_mean) / detector->event_samples;
+            return FALL_EVENT_NONE;
+        }
+
+        /* Evaluate [trigger,trigger+2000) without including this boundary
+         * sample. Sparse measurements cannot establish ordinary activity. */
+        if (detector->event_samples < FALL_DISTURBANCE_MIN_SAMPLES ||
+            detector->event_last_offset_ms < FALL_DISTURBANCE_MIN_LAST_OFFSET_MS ||
+            detector->event_last_offset_ms < FALL_DISTURBANCE_MIN_SPAN_MS)
+        {
+            FallDetector_StartWarmup(detector, input->time_ms);
+            return FALL_EVENT_DISTURBANCE_UNKNOWN;
+        }
+        double denominator = detector->candidate_baseline_mean;
+        if (denominator < FALL_BASELINE_FLOOR_ACCEL_MSD)
+            denominator = FALL_BASELINE_FLOOR_ACCEL_MSD;
+        detector->disturbance_ratio = detector->event_accel_msd_mean / denominator;
+        if (detector->disturbance_ratio < FALL_DISTURBANCE_RATIO)
+        {
+            detector->state = FALL_STATE_NORMAL;
+            detector->trigger_armed = false;
+            return FALL_EVENT_DISTURBANCE_REJECTED;
+        }
+        detector->disturbance_confirmed = true;
+        return FALL_EVENT_DISTURBANCE_CONFIRMED;
+    }
+
+    /* Later spikes leave the original candidate time unchanged. Qualification
+     * uses the first two of the existing five settling seconds. */
     if (detector->state == FALL_STATE_OBSERVING &&
-        (uint32_t)(input->time_ms - detector->candidate_start_ms) <
-            FALL_IGNORE_AFTER_TRIGGER_MS)
+        candidate_age_ms < FALL_IGNORE_AFTER_TRIGGER_MS)
     {
         return FALL_EVENT_NONE;
     }

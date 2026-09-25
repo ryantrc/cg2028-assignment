@@ -1,5 +1,10 @@
 # Prototype 1: sudden movement followed by quiet or continued movement
 
+**Historical behavior:** this page describes Prototype 1 before the baseline
+comparison was added. The current implementation and setup instructions are in
+[the Prototype 2 guide](prototype-2.md). Rebuild and flash the updated firmware
+to use Prototype 2; the linked source files now contain that newer version.
+
 This prototype runs on the STM32. It watches for a large accelerometer change,
 then uses the following activity to choose a **fall**, **near-fall**, or
 **uncertain** result. These names describe the programmed movement patterns;
