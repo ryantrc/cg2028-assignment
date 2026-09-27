@@ -9,6 +9,8 @@
 #include "main.h"
 #include "motion_metrics.h"
 #include "fall_detector.h"
+#include "alarm_button.h"
+#include "../../Drivers/BSP/B-L4S5I-IOT01/stm32l4s5i_iot01.h"
 #include "../../Drivers/BSP/B-L4S5I-IOT01/stm32l4s5i_iot01_accelero.h"
 #include "../../Drivers/BSP/B-L4S5I-IOT01/stm32l4s5i_iot01_gyro.h"
 
@@ -23,7 +25,8 @@
 #define EWMA_ALPHA_GYRO_PERCENT 25
 #define SAMPLE_INTERVAL_MS 100
 #define NORMAL_LED_DELAY_MS 1000
-#define FALL_LED_DELAY_MS 150
+#define FALL_LED_DELAY_MS 50
+#define LONG_LIE_LED_PERIOD_MS 1000U
 
 static void UART1_Init(void);
 static void UART_Send(const char *text);
@@ -47,6 +50,12 @@ int main(void)
     UART1_Init();
 
     BSP_LED_Init(LED2);
+    USER_BUTTON_GPIO_CLK_ENABLE();
+    GPIO_InitTypeDef button_gpio = {0};
+    button_gpio.Pin = USER_BUTTON_PIN;
+    button_gpio.Mode = GPIO_MODE_INPUT;
+    button_gpio.Pull = GPIO_NOPULL; /* BSP board supplies the button bias. */
+    HAL_GPIO_Init(USER_BUTTON_GPIO_PORT, &button_gpio);
     /* The BSP can leave a driver uninitialized after a failed sensor-ID read.
      * Check both return values AND errors hidden by its I2C recovery routine. */
     uint32_t init_errors = BSP_SENSOR_IO_GetErrorCount();
@@ -75,17 +84,54 @@ int main(void)
     /* Keep the three-second history buffer out of the main call stack. */
     static FallDetector detector;
     FallDetector_Init(&detector);
+    AlarmButton button;
+    AlarmButton_Init(&button,
+        HAL_GPIO_ReadPin(USER_BUTTON_GPIO_PORT, USER_BUTTON_PIN) == GPIO_PIN_RESET,
+        HAL_GetTick());
 
     while (1)
     {
         /* LED timing is independent of sensor sampling: a slow blink must
          * not stop sensor reads for a whole second. */
         uint32_t now_ms = HAL_GetTick();
+        bool pressed = HAL_GPIO_ReadPin(USER_BUTTON_GPIO_PORT, USER_BUTTON_PIN) == GPIO_PIN_RESET;
+        if (AlarmButton_Update(&button, pressed, detector.fall_latched, now_ms))
+        {
+            bool fault_before_reset = detector.sensor_fault_active || !sensors_ready;
+            FallDetector_ManualReset(&detector);
+            ResetMotionProcessing(accel_ewma_asm, gyro_ewma_asm,
+                                  accel_ewma_c, gyro_ewma_c,
+                                  &accel_metrics_state, &gyro_metrics_state);
+            has_previous_read = false;
+            BSP_LED_Off(LED2);
+            last_led_ms = now_ms;
+            if (fault_before_reset)
+            {
+                FallDetectorInput faulty = {.time_ms = now_ms, .valid = false};
+                (void)FallDetector_Update(&detector, &faulty);
+            }
+            char reset_message[160];
+            snprintf(reset_message, sizeof(reset_message),
+                     "DETECTOR TimeMs=%lu State=%s Alarm=0 Sensors=%s Event=MANUAL_RESET Resetting alarm; collecting baseline.\r\n",
+                     (unsigned long)now_ms, FallDetector_StateName(detector.state),
+                     fault_before_reset ? "FAULT" : "OK");
+            UART_Send(reset_message);
+        }
+        if (detector.state == FALL_STATE_LONG_LIE)
+        {
+            /* Two short flashes per second distinguish escalation from fall. */
+            uint32_t phase = now_ms % LONG_LIE_LED_PERIOD_MS;
+            if (phase < 100U || (phase >= 200U && phase < 300U)) BSP_LED_On(LED2);
+            else BSP_LED_Off(LED2);
+        }
+        else
+        {
         uint32_t led_interval_ms = detector.fall_latched ? FALL_LED_DELAY_MS : NORMAL_LED_DELAY_MS;
         if ((uint32_t)(now_ms - last_led_ms) >= led_interval_ms)
         {
             BSP_LED_Toggle(LED2);
             last_led_ms = now_ms;
+        }
         }
         if ((uint32_t)(now_ms - last_sample_ms) < SAMPLE_INTERVAL_MS)
         {
@@ -234,7 +280,7 @@ int main(void)
         detector_input.gyro_msd = gyro_metrics.msd;
         detector_input.gyro_magnitude = gyro_metrics.magnitude;
         FallDetectorEvent detector_event = FallDetector_Update(&detector, &detector_input);
-        if (detector_event == FALL_EVENT_FALL)
+        if (detector_event == FALL_EVENT_FALL || detector_event == FALL_EVENT_LONG_LIE)
         {
             BSP_LED_On(LED2);
             last_led_ms = HAL_GetTick();
@@ -320,7 +366,9 @@ static void ReportDetectorStatus(const FallDetector *detector, FallDetectorEvent
     case FALL_EVENT_NEAR_FALL:
         name = "NEAR_FALL"; message = "Continued movement; monitoring resumes."; break;
     case FALL_EVENT_FALL:
-        name = "POSSIBLE_FALL"; message = "Sustained stillness; reset board to clear alarm."; break;
+        name = "POSSIBLE_FALL"; message = "Sustained stillness; hold user button for two seconds to clear alarm."; break;
+    case FALL_EVENT_LONG_LIE:
+        name = "LONG_LIE"; message = "Thirty complete quiet seconds after fall (experimental demo setting)."; break;
     case FALL_EVENT_UNCERTAIN:
         name = "UNCERTAIN"; message = "Mixed evidence; continuing one-second checks."; break;
     case FALL_EVENT_SENSOR_FAULT:

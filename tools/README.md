@@ -1,7 +1,8 @@
 # Record tests, free activity and calibration
 
-`record_activity.py` runs on your Mac and saves UART readings without additional
-Python packages. macOS or Linux is required for serial recording. **Choose
+`record_activity.py` saves UART readings on macOS, Linux, and Windows.
+Windows requires `python -m pip install pyserial`; macOS and Linux use only the
+Python standard library. **Choose
 exactly one mode:** `--test`, `--free`, or `--calibration`. There is no default
 recording mode; the old `--dataset` option has been removed.
 
@@ -58,7 +59,8 @@ you can repeat the same activity name and distinguish trials by session and note
 The logger detects the USB serial device and uses 115200 baud, 8 data bits,
 no parity, 1 stop bit and no flow control. If several devices are connected,
 choose `--port /dev/cu.usbmodemXXXX` using the current device name from
-`ls /dev/cu.usbmodem*`.
+`ls /dev/cu.usbmodem*`. On Windows, it detects the ST-LINK virtual COM port;
+use `--port COM5` (with your current COM number) if more than one board is connected.
 
 | Mode | Automatic stopping condition | If a fall is detected early |
 |---|---|---|
@@ -75,11 +77,18 @@ values and `--samples` are rejected. Tests may use `--samples` to stop at a
 sample count or their time limit, whichever happens first.
 
 **Free mode runs until a fall is reported**, without a time limit. An explicit
-`POSSIBLE_FALL` event or a valid `FALL_LATCHED` status with `Alarm=1` prints
+`POSSIBLE_FALL` event or a valid `FALL_LATCHED` or `LONG_LIE` status with `Alarm=1` prints
 **Fall detected** and stops Python; normal, near-fall and uncertain messages do
 not stop it. An alarm already latched when the logger connects is identified
-separately, and the run stops so you can reset the board. The STM32 continues
+separately, and the run stops so you can hold the PC13 user button for two
+seconds (or reset the board). The STM32 continues
 running. Free mode rejects `--duration` and `--samples`.
+
+For a Long Lie demonstration, use a test recording of at least 60 seconds:
+`python3 tools/record_activity.py --test --name long-lie-demo --verdict fall --duration 60`.
+Free mode stops on the first fall. The 30-second Long Lie threshold is an
+experimental demo setting, not a validated measure of a person's condition.
+The fall LED toggles every 50 ms; Long Lie gives two short flashes per second.
 
 `--verdict` is not accepted outside test mode. Missing or mixed modes and missing
 required test verdicts are rejected before serial access.

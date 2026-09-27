@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Record the STM32's printed EWMA readings to SQLite and CSV on macOS/Linux.
+"""Record the STM32's printed EWMA readings to SQLite and CSV.
 
-Uses Python's standard library only. Run with --help for examples and options.
+On Windows, install pyserial first. Run with --help for examples and options.
 """
 
 import argparse
@@ -519,6 +519,23 @@ class CSVRecorder:
 
 
 def serial_port(requested):
+    if sys.platform == "win32":
+        try:
+            from serial.tools import list_ports
+        except ImportError as error:
+            raise ValueError("Windows serial recording needs pyserial: python -m pip install pyserial") from error
+        ports = list(list_ports.comports())
+        if requested != "auto":
+            for port in ports:
+                if port.device.lower() == requested.lower():
+                    return port.device
+            raise FileNotFoundError(f"Serial port not found: {requested}. Connect the board or use --port auto.")
+        stlinks = [port.device for port in ports if port.vid == 0x0483 and port.pid == 0x3752]
+        if len(stlinks) == 1:
+            return stlinks[0]
+        if not stlinks:
+            raise FileNotFoundError("No ST-LINK virtual COM port found. Connect the board using its ST-LINK USB connector.")
+        raise ValueError("Multiple ST-LINK serial ports found; choose one with --port: " + ", ".join(stlinks))
     if requested != "auto":
         path = str(Path(requested).expanduser())
         if not Path(path).exists():
@@ -534,7 +551,7 @@ def serial_port(requested):
     return ports[0]
 
 
-class SerialReader:
+class PosixSerialReader:
     """115200 8N1 serial input with no third-party Python dependencies."""
 
     def __init__(self, path):
@@ -609,6 +626,30 @@ class SerialReader:
             pass
         finally:
             os.close(self.fd)
+
+
+class WindowsSerialReader:
+    """Read the ST-LINK virtual COM port through pyserial on Windows."""
+
+    def __init__(self, path):
+        import serial
+
+        self.port = serial.Serial(path, baudrate=115200, bytesize=serial.EIGHTBITS,
+                                  parity=serial.PARITY_NONE, stopbits=serial.STOPBITS_ONE,
+                                  timeout=1, xonxoff=False, rtscts=False, dsrdtr=False,
+                                  exclusive=True)
+        self.port.reset_input_buffer()
+
+    def read(self, timeout=1.0):
+        if self.port.timeout != timeout:
+            self.port.timeout = timeout
+        return self.port.read(4096) or None
+
+    def close(self):
+        self.port.close()
+
+
+SerialReader = WindowsSerialReader if sys.platform == "win32" else PosixSerialReader
 
 
 def prepare_console():
@@ -693,11 +734,10 @@ class RecordingProgress:
 
 
 def record(args):
-    if sys.platform == "win32":
-        raise ValueError("Serial recording currently supports macOS and Linux. SQLite/CSV files are portable.")
     validate_output_paths([args.db, args.csv])
     mode = getattr(args, "mode", "calibration")
-    prepare_console()
+    if sys.platform != "win32":
+        prepare_console()
     path = serial_port(args.port)
     reader = SerialReader(path)
     database = None
@@ -786,14 +826,14 @@ def record(args):
                                 # State can change after the final sensor frame,
                                 # including the alarm that stops a free run.
                                 progress.update(diagnostic=parsed)
-                                if mode == "free" and parsed["alarm"] == 1 and parsed["state"] == "FALL_LATCHED":
+                                if mode == "free" and parsed["alarm"] == 1 and parsed["state"] in ("FALL_LATCHED", "LONG_LIE"):
                                     fall_detected = True
                                     stop_reason = "FALL_DETECTED"
                                     if parsed["event"] == "POSSIBLE_FALL":
                                         progress.message("Fall detected. Saving data and stopping the free run.")
                                     else:
                                         progress.message("Fall detected: the board reports an existing latched alarm. "
-                                                         "Stopping; reset the board before a fresh run.")
+                                                         "Stopping; hold the user button for two seconds before a fresh run.")
                                     break
                                 if parsed["event"] != "STATUS":
                                     progress.message(diagnostic)

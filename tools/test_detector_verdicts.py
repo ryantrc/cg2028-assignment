@@ -25,7 +25,7 @@ def diagnostic(event="STATUS", state=None, *, tick=1000, alarm=None, sensors="OK
         if event == "SENSOR_FAULT":
             state = "SENSOR_FAULT"
     if alarm is None:
-        alarm = int(state == "FALL_LATCHED")
+        alarm = int(state in ("FALL_LATCHED", "LONG_LIE"))
     return f"DETECTOR TimeMs={tick} State={state} Alarm={alarm} Sensors={sensors} Event={event} {message}"
 
 
@@ -44,6 +44,16 @@ def sample(number=123):
 
 
 class VerdictRecorderTests(unittest.TestCase):
+    def test_long_lie_fault_and_reset_preserve_fall_verdict(self):
+        run = self.start()
+        self.append(run, "POSSIBLE_FALL")
+        self.append(run, "LONG_LIE", tick=31000)
+        self.append(run, "SENSOR_FAULT", state="LONG_LIE", tick=31100, sensors="FAULT")
+        self.append(run, "STATUS", state="LONG_LIE", tick=32000, sensors="FAULT")
+        self.append(run, "MANUAL_RESET", state="SENSOR_FAULT", tick=33000, sensors="FAULT")
+        self.assertEqual(self.row(run)["observed_verdict"], "POSSIBLE_FALL")
+        self.assertEqual(self.row(run)["last_alarm"], 0)
+
     def setUp(self):
         self.temporary = tempfile.TemporaryDirectory()
         self.addCleanup(self.temporary.cleanup)

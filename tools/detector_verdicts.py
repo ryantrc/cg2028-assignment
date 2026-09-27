@@ -15,6 +15,7 @@ import re
 import shutil
 import sqlite3
 import tempfile
+import time
 
 
 CSV_FIELDS = (
@@ -58,7 +59,7 @@ SUMMARY_FIELDS = (
     "diagnostic_coverage", "sensor_health",
 )
 STATES = frozenset((
-    "WARMUP", "NORMAL", "OBSERVING", "UNCERTAIN", "FALL_LATCHED", "SENSOR_FAULT",
+    "WARMUP", "NORMAL", "OBSERVING", "UNCERTAIN", "FALL_LATCHED", "LONG_LIE", "SENSOR_FAULT",
 ))
 EVENT_STATES = {
     "READY": "NORMAL", "SPIKE": "OBSERVING", "NEAR_FALL": "NORMAL",
@@ -67,8 +68,9 @@ EVENT_STATES = {
     "DISTURBANCE_CONFIRMED": "OBSERVING",
     "DISTURBANCE_REJECTED": "NORMAL",
     "DISTURBANCE_UNKNOWN": "WARMUP",
+    "LONG_LIE": "LONG_LIE",
 }
-EVENTS = frozenset((*EVENT_STATES, "STATUS", "SENSOR_FAULT"))
+EVENTS = frozenset((*EVENT_STATES, "STATUS", "SENSOR_FAULT", "MANUAL_RESET"))
 DIAGNOSTIC = re.compile(
     r"DETECTOR[ \t]+TimeMs=([0-9]{1,10})[ \t]+State=([A-Z_]+)"
     r"[ \t]+Alarm=([01])[ \t]+Sensors=(OK|FAULT)[ \t]+Event=([A-Z_]+)"
@@ -132,17 +134,19 @@ def parse_diagnostic(line):
     tick, alarm = int(tick), int(alarm)
     if tick > 0xFFFFFFFF or state not in STATES or event not in EVENTS:
         raise ValueError("Unknown detector state/event or out-of-range board time")
-    if bool(alarm) != (state == "FALL_LATCHED"):
+    if bool(alarm) != (state in ("FALL_LATCHED", "LONG_LIE")):
         raise ValueError("Alarm flag disagrees with detector state")
     if (sensors == "FAULT") != (state == "SENSOR_FAULT" or event == "SENSOR_FAULT"):
         # A latched alarm can retain its state throughout a subsequent fault.
-        if not (state == "FALL_LATCHED" and sensors == "FAULT" and event == "STATUS"):
+        if not (state in ("FALL_LATCHED", "LONG_LIE") and sensors == "FAULT" and event in ("STATUS", "SENSOR_FAULT")):
             raise ValueError("Sensor status disagrees with detector state/event")
     if event in EVENT_STATES and state != EVENT_STATES[event]:
         raise ValueError("Detector event disagrees with detector state")
-    if event == "SENSOR_FAULT" and state not in ("SENSOR_FAULT", "FALL_LATCHED"):
+    if event == "SENSOR_FAULT" and state not in ("SENSOR_FAULT", "FALL_LATCHED", "LONG_LIE"):
         raise ValueError("Sensor fault has an incompatible detector state")
-    if sensors == "FAULT" and event not in ("STATUS", "SENSOR_FAULT"):
+    if event == "MANUAL_RESET" and state not in ("WARMUP", "SENSOR_FAULT"):
+        raise ValueError("Reset has an incompatible detector state")
+    if sensors == "FAULT" and event not in ("STATUS", "SENSOR_FAULT", "MANUAL_RESET"):
         raise ValueError("A decision cannot be based on a failed acquisition")
     return {
         "board_time_ms": tick, "state": state, "alarm": alarm,
@@ -695,7 +699,16 @@ class VerdictRecorder:
                     writer.writerow(dict(row))
                 stream.flush()
                 os.fsync(stream.fileno())
-            os.replace(temporary, self.csv_path)
+            for attempt in range(20):
+                try:
+                    os.replace(temporary, self.csv_path)
+                    break
+                except PermissionError:
+                    if os.name != "nt" or attempt == 19:
+                        raise
+                    # Windows search, antivirus, or a preview can briefly hold
+                    # the previous CSV open while the database remains writable.
+                    time.sleep(0.1)
         finally:
             if temporary is not None and temporary.exists():
                 temporary.unlink()

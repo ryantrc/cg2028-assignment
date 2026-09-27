@@ -9,7 +9,8 @@ fall detection.
 
 **Rebuild and flash `CG2028_Assignment` in CubeIDE to run Prototype 2.** Updating
 the Python recorder alone does not install the new detector on the STM32.
-Resume execution, reset the board before a fresh trial, and wait for `READY`
+Resume execution, reset the board or hold the PC13 user button for two seconds
+after an alarm, and wait for `READY`
 (`State=NORMAL`, `Alarm=0`) before the intended event. Startup needs roughly
 five seconds of valid readings: two seconds for filter settling, then three
 seconds of baseline activity.
@@ -36,3 +37,10 @@ retained.
 - [Recording commands, names and duration](tools/README.md)
 - [Saved files, fields and verdict meanings](data/README.md)
 - [Prototype 1: historical detector behavior](docs/prototype-1.md)
+
+After a fall, 30 consecutive complete quiet seconds escalate to `LONG_LIE`.
+This is an experimental demo setting, not a validated measure of a person's
+condition. The fall LED toggles every 50 ms; Long Lie gives two short flashes
+per second. Use `--test --duration 60` or longer to record both events because
+free mode stops at the first fall. A sensor fault needs hardware attention;
+holding the button does not repair it.

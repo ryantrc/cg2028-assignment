@@ -19,6 +19,7 @@ import math
 from pathlib import Path
 import sqlite3
 import subprocess
+import shutil
 import tempfile
 
 
@@ -51,6 +52,7 @@ static const char *event_name(FallDetectorEvent event)
     case FALL_EVENT_SPIKE: return "SPIKE";
     case FALL_EVENT_NEAR_FALL: return "NEAR_FALL";
     case FALL_EVENT_FALL: return "FALL";
+    case FALL_EVENT_LONG_LIE: return "LONG_LIE";
     case FALL_EVENT_UNCERTAIN: return "UNCERTAIN";
     case FALL_EVENT_SENSOR_FAULT: return "SENSOR_FAULT";
     case FALL_EVENT_RESTARTED: return "RESTARTED";
@@ -204,7 +206,8 @@ def adapter_input(sessions, readings):
     return "".join(lines), diagnostics
 
 
-def replay(sessions, readings, compiler="cc"):
+def replay(sessions, readings, compiler=None):
+    compiler = compiler or shutil.which("cc") or shutil.which("gcc") or "cc"
     stream, diagnostics = adapter_input(sessions, readings)
     with tempfile.TemporaryDirectory(prefix="cg2028-fall-replay-") as directory:
         source = Path(directory) / "adapter.c"
@@ -302,7 +305,7 @@ def print_summary(sessions, events, diagnostics):
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--db", type=Path, default=DEFAULT_DATABASE)
-    parser.add_argument("--cc", default="cc", help="Native C compiler executable (default: cc)")
+    parser.add_argument("--cc", default=None, help="Native C compiler executable (default: cc or gcc)")
     parser.add_argument("--check-calibration", action="store_true", help="Assert the expected results for current sessions 1–35")
     parser.add_argument("--events", action="store_true", help="Also print each event with its original database record ID and board tick")
     parser.add_argument("--session", type=int, action="append", help="Include only these calibration session IDs; repeatable")

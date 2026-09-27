@@ -32,6 +32,8 @@
 #define FALL_DISTURBANCE_MIN_SPAN_MS 1800U
 #define FALL_IGNORE_AFTER_TRIGGER_MS 5000U
 #define FALL_BLOCK_MS 1000U
+#define FALL_LONG_LIE_MS 30000U /* Experimental demonstration setting. */
+#define FALL_LONG_LIE_BLOCKS ((FALL_LONG_LIE_MS + FALL_BLOCK_MS - 1U) / FALL_BLOCK_MS)
 #define FALL_REQUIRED_BLOCKS 3U
 #define FALL_OBSERVATION_MS \
     (FALL_IGNORE_AFTER_TRIGGER_MS + FALL_REQUIRED_BLOCKS * FALL_BLOCK_MS)
@@ -51,6 +53,7 @@ typedef enum
     FALL_STATE_OBSERVING,
     FALL_STATE_UNCERTAIN,
     FALL_STATE_FALL_LATCHED,
+    FALL_STATE_LONG_LIE,
     FALL_STATE_SENSOR_FAULT
 } FallDetectorState;
 
@@ -61,6 +64,7 @@ typedef enum
     FALL_EVENT_SPIKE,
     FALL_EVENT_NEAR_FALL,
     FALL_EVENT_FALL,
+    FALL_EVENT_LONG_LIE,
     FALL_EVENT_UNCERTAIN,
     FALL_EVENT_SENSOR_FAULT,
     FALL_EVENT_RESTARTED,
@@ -96,6 +100,7 @@ typedef struct
     unsigned int completed_blocks;
     unsigned int quiet_blocks;
     unsigned int moving_blocks;
+    unsigned int long_lie_quiet_blocks;
 
     unsigned int block_samples;
     uint32_t block_first_offset_ms;
@@ -134,6 +139,7 @@ static inline const char *FallDetector_StateName(FallDetectorState state)
     case FALL_STATE_OBSERVING: return "OBSERVING";
     case FALL_STATE_UNCERTAIN: return "UNCERTAIN";
     case FALL_STATE_FALL_LATCHED: return "FALL_LATCHED";
+    case FALL_STATE_LONG_LIE: return "LONG_LIE";
     case FALL_STATE_SENSOR_FAULT: return "SENSOR_FAULT";
     default: return "UNKNOWN";
     }
@@ -170,6 +176,12 @@ static inline void FallDetector_Init(FallDetector *detector)
     memset(detector, 0, sizeof(*detector));
     detector->state = FALL_STATE_WARMUP;
     detector->trigger_armed = true;
+}
+
+/* A reset is deliberate; sensor health remains the caller's responsibility. */
+static inline void FallDetector_ManualReset(FallDetector *detector)
+{
+    FallDetector_Init(detector);
 }
 
 /* Mean of [now-3000, now), evaluated BEFORE storing the current sample.
@@ -268,6 +280,7 @@ static inline FallDetectorEvent FallDetector_Update(
         detector->baseline_count = 0U;
         detector->baseline_next = 0U;
         FallDetector_ClearCandidate(detector);
+        detector->long_lie_quiet_blocks = 0U;
         if (!detector->fall_latched)
         {
             detector->state = FALL_STATE_SENSOR_FAULT;
@@ -280,7 +293,45 @@ static inline FallDetectorEvent FallDetector_Update(
     detector->sensor_fault_active = false;
     if (detector->fall_latched)
     {
-        return FALL_EVENT_NONE; /* Only explicit initialization clears this. */
+        if (detector->state == FALL_STATE_LONG_LIE)
+            return FALL_EVENT_NONE;
+        bool duplicate = detector->has_last_sample && input->time_ms == detector->last_sample_ms;
+        bool gap = detector->has_last_sample &&
+            (uint32_t)(input->time_ms - detector->last_sample_ms) > FALL_MAX_SAMPLE_GAP_MS;
+        detector->last_sample_ms = input->time_ms;
+        detector->has_last_sample = true;
+        if (recovering_from_fault || gap || !input->msd_valid || duplicate)
+        {
+            detector->long_lie_quiet_blocks = 0U;
+            detector->block_start_ms = input->time_ms;
+            FallDetector_ClearBlock(detector);
+            return FALL_EVENT_NONE;
+        }
+        uint32_t offset = (uint32_t)(input->time_ms - detector->block_start_ms);
+        while (offset >= FALL_BLOCK_MS)
+        {
+            FallBlockClassification classification = FallDetector_ClassifyBlock(detector);
+            detector->long_lie_quiet_blocks = classification == FALL_BLOCK_QUIET ?
+                detector->long_lie_quiet_blocks + 1U : 0U;
+            detector->block_start_ms += FALL_BLOCK_MS;
+            FallDetector_ClearBlock(detector);
+            offset = (uint32_t)(input->time_ms - detector->block_start_ms);
+            if (detector->long_lie_quiet_blocks >= FALL_LONG_LIE_BLOCKS)
+            {
+                detector->state = FALL_STATE_LONG_LIE;
+                return FALL_EVENT_LONG_LIE;
+            }
+        }
+        if (detector->block_samples == 0U) detector->block_first_offset_ms = offset;
+        detector->block_last_offset_ms = offset;
+        detector->block_samples++;
+        detector->block_accel_msd_mean +=
+            (input->accel_msd - detector->block_accel_msd_mean) / detector->block_samples;
+        detector->block_gyro_msd_mean +=
+            (input->gyro_msd - detector->block_gyro_msd_mean) / detector->block_samples;
+        detector->block_gyro_magnitude_mean +=
+            (input->gyro_magnitude - detector->block_gyro_magnitude_mean) / detector->block_samples;
+        return FALL_EVENT_NONE;
     }
 
     bool duplicate_time = detector->has_last_sample &&
@@ -425,6 +476,9 @@ static inline FallDetectorEvent FallDetector_Update(
         {
             detector->fall_latched = true;
             detector->state = FALL_STATE_FALL_LATCHED;
+            detector->long_lie_quiet_blocks = 0U;
+            detector->block_start_ms += FALL_BLOCK_MS;
+            FallDetector_ClearBlock(detector);
             return FALL_EVENT_FALL;
         }
         if (detector->moving_blocks >= FALL_REQUIRED_BLOCKS)

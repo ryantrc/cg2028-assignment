@@ -110,7 +110,13 @@ exactly on a block boundary belongs to the next block.
 
 Monitoring, provisional candidates, observation, uncertainty and near-fall
 results keep the normal LED toggle interval of **1000 ms**. A fall result
-latches the alarm and toggles the LED every **150 ms** until the board resets.
+latches the alarm and toggles the LED every **50 ms**. After the fall decision,
+30 consecutive complete one-second quiet blocks escalate to `LONG_LIE` while
+`Alarm=1` remains latched. `FALL_LONG_LIE_MS` defaults to **30 seconds** as an
+experimental demo setting, not a validated measure of a person's condition.
+Movement, mixed or incomplete blocks, duplicate timestamps, gaps, and faults
+break this new quiet streak. `LONG_LIE` stays latched until manual reset and
+uses two short LED flashes each second.
 A full blink takes two toggles. The alarm stays latched even if a later sensor
 fault occurs.
 
@@ -124,7 +130,12 @@ rejected instead of saved as fake samples. Sensor initialization and I²C faults
 require a board reset. Valid evidence must return before monitoring resumes.
 Missing readings never count as quiet movement.
 
-**Restarting Python does not reset the detector.** Reset the board between
+**Restarting Python does not reset the detector.** To clear a fall or Long Lie
+alarm, press and hold the PC13 user button for two debounced seconds. Press
+and release each time; a button held before the fall is ignored. The reset
+clears motion history and restarts warmup and baseline collection. A failed
+sensor still reports `SENSOR_FAULT` and needs hardware repair or board reset.
+Use this button reset or reset the board between
 trials, then wait for `READY` / `State=NORMAL Alarm=0`. A previously latched
 alarm observed when the logger connects is not a new fall in that recording.
 
@@ -147,7 +158,7 @@ alarm observed when the logger connects is not a new fall in that recording.
 4. Perform the intended movement and allow at least eight seconds afterward
    for the first decision. Leave longer for an uncertain result to resolve.
    Inspect `SPIKE`, the disturbance result, and the later decision separately.
-5. Reset the board before the next trial. Keep fresh comparison trials separate
+5. Hold the user button for two seconds or reset the board before the next trial. Keep fresh comparison trials separate
    from recordings used to choose thresholds.
 
 Recording modes and files are unchanged:
@@ -165,6 +176,8 @@ Recording modes and files are unchanged:
 The timer includes startup/waiting time if the recorder is already running.
 Use `--duration 60` for a test needing more preparation. Existing recordings
 are retained; offline replay does not overwrite their saved live outcomes.
+For a Long Lie demonstration, use `--test --duration 60` or longer: free mode
+stops on the first fall and cannot capture the later escalation.
 In a test summary, a rejected candidate can leave `NO_EVENT_OBSERVED`; this
 means no fall/near-fall decision was observed, not proof of ordinary activity.
 `DISTURBANCE_UNKNOWN` instead leaves `OBSERVATION_INCOMPLETE`, even after a later
