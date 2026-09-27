@@ -20,6 +20,7 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "stm32l4xx_it.h"
+#include "status_led.h"
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 /* USER CODE END Includes */
@@ -186,6 +187,18 @@ void SysTick_Handler(void)
 
   /* USER CODE END SysTick_IRQn 0 */
   HAL_IncTick();
+  /* Drive the status pattern from the 1 ms tick so UART transmission and
+   * sensor reads cannot stall the 30 Hz fall indication. */
+  extern volatile bool fall_detected;
+  extern volatile bool status_setup_complete;
+  extern volatile bool status_led_enabled;
+  if (status_led_enabled)
+  {
+    StatusLedMode mode = fall_detected ? STATUS_LED_FALL :
+                         (status_setup_complete ? STATUS_LED_NORMAL : STATUS_LED_SETUP);
+    HAL_GPIO_WritePin(LED2_GPIO_Port, LED2_Pin,
+                      StatusLed_IsOn(mode, HAL_GetTick()) ? GPIO_PIN_SET : GPIO_PIN_RESET);
+  }
   /* USER CODE BEGIN SysTick_IRQn 1 */
 
   /* USER CODE END SysTick_IRQn 1 */

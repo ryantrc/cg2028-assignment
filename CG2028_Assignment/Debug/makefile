@@ -68,8 +68,8 @@ all: main-build
 main-build: CG2028_Assignment.elf secondary-outputs
 
 # Tool invocations
-CG2028_Assignment.elf CG2028_Assignment.map: $(OBJS) $(USER_OBJS) /Users/ryantan/MyWork/CG2028workspace/cg2028-Assignment/CG2028_Assignment/STM32L4S5VITX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
-	arm-none-eabi-gcc -o "CG2028_Assignment.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"/Users/ryantan/MyWork/CG2028workspace/cg2028-Assignment/CG2028_Assignment/STM32L4S5VITX_FLASH.ld" --specs=nosys.specs -Wl,-Map="CG2028_Assignment.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -u _printf_float -Wl,--start-group -lc -lm -Wl,--end-group
+CG2028_Assignment.elf CG2028_Assignment.map: $(OBJS) $(USER_OBJS) ../STM32L4S5VITX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
+	arm-none-eabi-gcc -o "CG2028_Assignment.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"../STM32L4S5VITX_FLASH.ld" --specs=nosys.specs -Wl,-Map="CG2028_Assignment.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -u _printf_float -Wl,--start-group -lc -lm -Wl,--end-group
 	@echo 'Finished building target: $@'
 	@echo ' '
 

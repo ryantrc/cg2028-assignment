@@ -8,9 +8,8 @@ arithmetic mean across axes. Old `Avg` serial output produces an explicit error
 so that averages cannot be mistaken for magnitudes. Sampling remains at 100 ms
 and the baud rate remains 115200.
 
-The [Prototype 1 guide](../docs/prototype-1.md) explains the experimental
-fall/near-fall decisions, LED behavior and board-reset procedure. Its `DETECTOR`
-messages appear in Terminal; measurement files retain their 22-column format.
+Measurement files retain their 22-column format; detector behavior is intentionally
+not part of the current firmware while the detector interface is being redesigned.
 
 ```text
 STM32 accelerometer + gyroscope → UART output → Python logger
@@ -142,8 +141,8 @@ If an older database contains actual values in those columns, the logger stops
 rather than discarding them. Retain that dataset and choose a new pair of
 `--db` and `--csv` filenames for subsequent recordings.
 
-`normal` is a manual label, not a determination made by the fall detector. Only
-perform the intended activity during that recording. If the board has just
+`normal` is a manual label, not an automated determination. Only perform the intended
+activity during that recording. If the board has just
 started, early samples include the filter's startup settling. Record board
 placement and procedure in `--notes`.
 
@@ -232,13 +231,12 @@ bias. Magnitude uses the already filtered XYZ values; it does not add another
 EWMA filter. Filtering components before taking their magnitude can suppress
 the magnitude during rapid direction changes.
 
-For fall-detection experiments, view magnitude and MSD alongside the slopes.
+For motion experiments, view magnitude and MSD alongside the slopes.
 A rise followed by a fall within one window can give a near-zero slope despite
 a large movement:
 `0, 0, 10, 0, 0` has zero fitted slope at equally spaced times. Magnitude alone
-cannot identify a fall; ordinary handling can also cause large readings. A recent
-peak measurement could be added later. The experimental fall-decision logic is
-described in the [Prototype 1 guide](../docs/prototype-1.md).
+cannot identify an event; ordinary handling can also cause large readings. A recent
+peak measurement could be added later.
 
 ## Useful commands
 
