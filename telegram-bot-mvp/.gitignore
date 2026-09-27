@@ -1,0 +1,9 @@
+# Local secrets and runtime state for this bot.
+.env
+runtime/*
+!runtime/.gitignore
+tests/.pytest_cache/
+tests/__pycache__/
+__pycache__/
+*.py[cod]
+

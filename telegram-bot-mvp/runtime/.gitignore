@@ -1,0 +1,4 @@
+# Keep this runtime directory but ignore all generated DB, CSV, WAL, and log files.
+*
+!.gitignore
+
