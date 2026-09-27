@@ -10,6 +10,11 @@
 #include "motion_metrics.h"
 #include "fall_detector.h"
 #include "alarm_button.h"
+#include "telegram_alerts.h"
+#include "telegram_network.h"
+#include "FreeRTOS.h"
+#include "task.h"
+#include "semphr.h"
 #include "../../Drivers/BSP/B-L4S5I-IOT01/stm32l4s5i_iot01.h"
 #include "../../Drivers/BSP/B-L4S5I-IOT01/stm32l4s5i_iot01_accelero.h"
 #include "../../Drivers/BSP/B-L4S5I-IOT01/stm32l4s5i_iot01_gyro.h"
@@ -29,7 +34,10 @@
 #define LONG_LIE_LED_PERIOD_MS 1000U
 
 static void UART1_Init(void);
+static void SystemClock_Config(void);
 static void UART_Send(const char *text);
+static void SensorTask(void *unused);
+static void NetworkTask(void *unused);
 static void FormatMetric(char *text, size_t size, bool valid, double value);
 static void ResetMotionProcessing(int accel_asm[3], int gyro_asm[3],
                                   int accel_c[3], int gyro_c[3],
@@ -43,11 +51,63 @@ extern int ewma_filter(int new_data, int old_output, int alpha_percent);
 int ewma_filter_C(int new_data, int old_output, int alpha_percent);
 
 UART_HandleTypeDef huart1;
+volatile uint8_t ES_WIFI_ConnectStage;
+static SemaphoreHandle_t uart_mutex;
+static AlertQueue alerts;
 
 int main(void)
 {
     HAL_Init();
+    SystemClock_Config();
     UART1_Init();
+    uart_mutex = xSemaphoreCreateMutex();
+    AlertQueue_Init(&alerts);
+    configASSERT(uart_mutex != NULL);
+    configASSERT(xTaskCreate(SensorTask, "sensor", 2048U, NULL, 3U, NULL) == pdPASS);
+    configASSERT(xTaskCreate(NetworkTask, "network", 4096U, NULL, 1U, NULL) == pdPASS);
+    vTaskStartScheduler();
+    for (;;) {}
+}
+
+static void SystemClock_Config(void)
+{
+    RCC_OscInitTypeDef osc = {0};
+    RCC_ClkInitTypeDef clk = {0};
+
+    /* The ST Wi-Fi SPI3 example uses a 10 MHz SPI clock derived from
+     * an 80 MHz system clock. The board also needs this speed for TLS. */
+    __HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE1);
+    osc.OscillatorType = RCC_OSCILLATORTYPE_MSI;
+    osc.MSIState = RCC_MSI_ON;
+    osc.MSICalibrationValue = RCC_MSICALIBRATION_DEFAULT;
+    osc.MSIClockRange = RCC_MSIRANGE_6; /* 4 MHz */
+    osc.PLL.PLLState = RCC_PLL_ON;
+    osc.PLL.PLLSource = RCC_PLLSOURCE_MSI;
+    osc.PLL.PLLM = 1;
+    osc.PLL.PLLN = 40;
+    osc.PLL.PLLP = RCC_PLLP_DIV7;
+    osc.PLL.PLLQ = RCC_PLLQ_DIV2;
+    osc.PLL.PLLR = RCC_PLLR_DIV2;
+    if (HAL_RCC_OscConfig(&osc) != HAL_OK) for (;;) {}
+
+    clk.ClockType = RCC_CLOCKTYPE_HCLK | RCC_CLOCKTYPE_SYSCLK |
+                    RCC_CLOCKTYPE_PCLK1 | RCC_CLOCKTYPE_PCLK2;
+    clk.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
+    clk.AHBCLKDivider = RCC_SYSCLK_DIV1;
+    clk.APB1CLKDivider = RCC_HCLK_DIV1;
+    clk.APB2CLKDivider = RCC_HCLK_DIV1;
+    if (HAL_RCC_ClockConfig(&clk, FLASH_LATENCY_4) != HAL_OK) for (;;) {}
+}
+
+static void NetworkTask(void *unused)
+{
+    (void)unused;
+    TelegramNetwork_Run(&alerts, UART_Send);
+}
+
+static void SensorTask(void *unused)
+{
+    (void)unused;
 
     BSP_LED_Init(LED2);
     USER_BUTTON_GPIO_CLK_ENABLE();
@@ -84,6 +144,7 @@ int main(void)
     /* Keep the three-second history buffer out of the main call stack. */
     static FallDetector detector;
     FallDetector_Init(&detector);
+    UART_Send("ALERT Delivery=PENDING Network=STARTING\r\n");
     AlarmButton button;
     AlarmButton_Init(&button,
         HAL_GPIO_ReadPin(USER_BUTTON_GPIO_PORT, USER_BUTTON_PIN) == GPIO_PIN_RESET,
@@ -99,6 +160,9 @@ int main(void)
         {
             bool fault_before_reset = detector.sensor_fault_active || !sensors_ready;
             FallDetector_ManualReset(&detector);
+            taskENTER_CRITICAL();
+            AlertQueue_ResetEpisode(&alerts);
+            taskEXIT_CRITICAL();
             ResetMotionProcessing(accel_ewma_asm, gyro_ewma_asm,
                                   accel_ewma_c, gyro_ewma_c,
                                   &accel_metrics_state, &gyro_metrics_state);
@@ -135,7 +199,7 @@ int main(void)
         }
         if ((uint32_t)(now_ms - last_sample_ms) < SAMPLE_INTERVAL_MS)
         {
-            HAL_Delay(1);
+            vTaskDelay(pdMS_TO_TICKS(1U));
             continue;
         }
 
@@ -284,6 +348,22 @@ int main(void)
         {
             BSP_LED_On(LED2);
             last_led_ms = HAL_GetTick();
+            AlertKind kind = detector_event == FALL_EVENT_FALL ? ALERT_FALL : ALERT_LONG_LIE;
+            taskENTER_CRITICAL();
+            bool queued = AlertQueue_Event(&alerts, kind, sample_time_ms);
+            unsigned int queue_count = alerts.count;
+            unsigned int dropped_count = alerts.dropped;
+            taskEXIT_CRITICAL();
+            if (queued)
+            {
+                char alert_status[96];
+                snprintf(alert_status, sizeof(alert_status),
+                         "ALERT TimeMs=%lu Kind=%s Delivery=PENDING Queue=%u Dropped=%u\r\n",
+                         (unsigned long)sample_time_ms,
+                         kind == ALERT_FALL ? "FALL" : "LONG_LIE",
+                         queue_count, dropped_count);
+                UART_Send(alert_status);
+            }
         }
 
         char accel_msd[24], accel_magnitude_slope[24], accel_msd_slope[24];
@@ -420,7 +500,24 @@ int ewma_filter_C(int new_data, int old_output, int alpha_percent)
 
 static void UART_Send(const char *text)
 {
+    bool locked = xTaskGetSchedulerState() == taskSCHEDULER_RUNNING &&
+                  xSemaphoreTake(uart_mutex, pdMS_TO_TICKS(50U)) == pdTRUE;
+    if (xTaskGetSchedulerState() == taskSCHEDULER_RUNNING && !locked) return;
     HAL_UART_Transmit(&huart1, (uint8_t *)text, strlen(text), HAL_MAX_DELAY);
+    if (locked) xSemaphoreGive(uart_mutex);
+}
+
+void vApplicationStackOverflowHook(TaskHandle_t task, char *name)
+{
+    (void)task; (void)name;
+    __disable_irq();
+    for (;;) {}
+}
+
+void vApplicationMallocFailedHook(void)
+{
+    __disable_irq();
+    for (;;) {}
 }
 
 static void UART1_Init(void)

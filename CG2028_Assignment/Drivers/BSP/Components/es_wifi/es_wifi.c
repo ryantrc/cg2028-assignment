@@ -913,28 +913,34 @@ ES_WIFI_Status_t ES_WIFI_Connect(ES_WIFIObject_t *Obj, const char* SSID,
                                          const char* Password,
                                          ES_WIFI_SecurityType_t SecType)
 {
+  extern volatile uint8_t ES_WIFI_ConnectStage;
   ES_WIFI_Status_t ret;
   LOCK_WIFI();  
 
+  ES_WIFI_ConnectStage = 1;
   sprintf((char*)Obj->CmdData,"C1=%s\r", SSID);
   ret = AT_ExecuteCommand(Obj, Obj->CmdData, Obj->CmdData);
   if(ret == ES_WIFI_STATUS_OK)
   {
+    ES_WIFI_ConnectStage = 2;
     sprintf((char*)Obj->CmdData,"C2=%s\r", Password);
     ret = AT_ExecuteCommand(Obj, Obj->CmdData, Obj->CmdData);
 
     if(ret == ES_WIFI_STATUS_OK)
     {
+      ES_WIFI_ConnectStage = 3;
       Obj->Security = SecType;
       sprintf((char*)Obj->CmdData,"C3=%d\r", (uint8_t)SecType);
       ret = AT_ExecuteCommand(Obj, Obj->CmdData, Obj->CmdData);
 
       if(ret == ES_WIFI_STATUS_OK)
       {
+        ES_WIFI_ConnectStage = 4;
         sprintf((char*)Obj->CmdData,"C0\r");
         ret = AT_ExecuteCommand(Obj, Obj->CmdData, Obj->CmdData);
         if(ret == ES_WIFI_STATUS_OK)
         {
+           ES_WIFI_ConnectStage = 5;
            Obj->NetSettings.IsConnected = 1;
         }
       }
@@ -1435,7 +1441,8 @@ ES_WIFI_Status_t ES_WIFI_StartClientConnection(ES_WIFIObject_t *Obj, ES_WIFI_Con
     ret = AT_ExecuteCommand(Obj, Obj->CmdData, Obj->CmdData);
   }
 
-  if ((ret == ES_WIFI_STATUS_OK) && (conn->Type == ES_WIFI_TCP_CONNECTION))
+  if ((ret == ES_WIFI_STATUS_OK) &&
+      (conn->Type == ES_WIFI_TCP_CONNECTION || conn->Type == ES_WIFI_UDP_CONNECTION))
   {
     sprintf((char*)Obj->CmdData,"P3=%d.%d.%d.%d\r", conn->RemoteIP[0],conn->RemoteIP[1],
             conn->RemoteIP[2],conn->RemoteIP[3]);

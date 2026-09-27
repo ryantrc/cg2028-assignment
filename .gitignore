@@ -4,3 +4,12 @@
 /data/*.csv
 /data/backups/
 /tools/__pycache__/
+/CG2028_Assignment/Core/Inc/telegram_secrets.h
+/CG2028_Assignment/Debug/*.bin
+/CG2028_Assignment/Debug/*.hex
+/CG2028_Assignment/Debug/**/*.o
+/CG2028_Assignment/Debug/**/*.d
+/CG2028_Assignment/Debug/**/*.su
+/CG2028_Assignment/Debug/**/*.cyclo
+/CG2028_Assignment/Debug/ThirdParty/
+/CG2028_Assignment/BuildTelegram/
