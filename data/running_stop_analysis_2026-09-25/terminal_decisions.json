@@ -1,0 +1,507 @@
+[
+  {
+    "session_id": 44,
+    "activity": "running-continuously",
+    "events": [
+      {
+        "time_ms": 1402904,
+        "state": "OBSERVING",
+        "alarm": 0,
+        "sensors": "OK",
+        "event": "SPIKE",
+        "message": "Sharp movement; observing for 8 seconds."
+      },
+      {
+        "time_ms": 1410932,
+        "state": "NORMAL",
+        "alarm": 0,
+        "sensors": "OK",
+        "event": "NEAR_FALL",
+        "message": "Continued movement; monitoring resumes."
+      }
+    ],
+    "final_count": 301,
+    "final_state": "NORMAL",
+    "final_alarm": 0,
+    "trial": 41,
+    "first_ms": 1381420,
+    "last_ms": 1411562,
+    "n": 301
+  },
+  {
+    "session_id": 45,
+    "activity": "running-continuously",
+    "events": [
+      {
+        "time_ms": 8436,
+        "state": "OBSERVING",
+        "alarm": 0,
+        "sensors": "OK",
+        "event": "SPIKE",
+        "message": "Sharp movement; observing for 8 seconds."
+      },
+      {
+        "time_ms": 16492,
+        "state": "NORMAL",
+        "alarm": 0,
+        "sensors": "OK",
+        "event": "NEAR_FALL",
+        "message": "Continued movement; monitoring resumes."
+      },
+      {
+        "time_ms": 16795,
+        "state": "OBSERVING",
+        "alarm": 0,
+        "sensors": "OK",
+        "event": "SPIKE",
+        "message": "Sharp movement; observing for 8 seconds."
+      },
+      {
+        "time_ms": 24844,
+        "state": "NORMAL",
+        "alarm": 0,
+        "sensors": "OK",
+        "event": "NEAR_FALL",
+        "message": "Continued movement; monitoring resumes."
+      },
+      {
+        "time_ms": 25248,
+        "state": "OBSERVING",
+        "alarm": 0,
+        "sensors": "OK",
+        "event": "SPIKE",
+        "message": "Sharp movement; observing for 8 seconds."
+      },
+      {
+        "time_ms": 33308,
+        "state": "NORMAL",
+        "alarm": 0,
+        "sensors": "OK",
+        "event": "NEAR_FALL",
+        "message": "Continued movement; monitoring resumes."
+      },
+      {
+        "time_ms": 34216,
+        "state": "OBSERVING",
+        "alarm": 0,
+        "sensors": "OK",
+        "event": "SPIKE",
+        "message": "Sharp movement; observing for 8 seconds."
+      }
+    ],
+    "final_count": 300,
+    "final_state": "OBSERVING",
+    "final_alarm": 0,
+    "trial": 42,
+    "first_ms": 6356,
+    "last_ms": 36465,
+    "n": 300
+  },
+  {
+    "session_id": 46,
+    "activity": "running-continuously",
+    "events": [
+      {
+        "time_ms": 6541,
+        "state": "OBSERVING",
+        "alarm": 0,
+        "sensors": "OK",
+        "event": "SPIKE",
+        "message": "Sharp movement; observing for 8 seconds."
+      },
+      {
+        "time_ms": 14597,
+        "state": "NORMAL",
+        "alarm": 0,
+        "sensors": "OK",
+        "event": "NEAR_FALL",
+        "message": "Continued movement; monitoring resumes."
+      },
+      {
+        "time_ms": 14899,
+        "state": "OBSERVING",
+        "alarm": 0,
+        "sensors": "OK",
+        "event": "SPIKE",
+        "message": "Sharp movement; observing for 8 seconds."
+      },
+      {
+        "time_ms": 22951,
+        "state": "NORMAL",
+        "alarm": 0,
+        "sensors": "OK",
+        "event": "NEAR_FALL",
+        "message": "Continued movement; monitoring resumes."
+      },
+      {
+        "time_ms": 23657,
+        "state": "OBSERVING",
+        "alarm": 0,
+        "sensors": "OK",
+        "event": "SPIKE",
+        "message": "Sharp movement; observing for 8 seconds."
+      },
+      {
+        "time_ms": 31712,
+        "state": "NORMAL",
+        "alarm": 0,
+        "sensors": "OK",
+        "event": "NEAR_FALL",
+        "message": "Continued movement; monitoring resumes."
+      },
+      {
+        "time_ms": 31915,
+        "state": "OBSERVING",
+        "alarm": 0,
+        "sensors": "OK",
+        "event": "SPIKE",
+        "message": "Sharp movement; observing for 8 seconds."
+      }
+    ],
+    "final_count": 299,
+    "final_state": "OBSERVING",
+    "final_alarm": 0,
+    "trial": 43,
+    "first_ms": 5763,
+    "last_ms": 35776,
+    "n": 299
+  },
+  {
+    "session_id": 48,
+    "activity": "running-continuously",
+    "events": [
+      {
+        "time_ms": 6128,
+        "state": "OBSERVING",
+        "alarm": 0,
+        "sensors": "OK",
+        "event": "SPIKE",
+        "message": "Sharp movement; observing for 8 seconds."
+      },
+      {
+        "time_ms": 14180,
+        "state": "NORMAL",
+        "alarm": 0,
+        "sensors": "OK",
+        "event": "NEAR_FALL",
+        "message": "Continued movement; monitoring resumes."
+      },
+      {
+        "time_ms": 14482,
+        "state": "OBSERVING",
+        "alarm": 0,
+        "sensors": "OK",
+        "event": "SPIKE",
+        "message": "Sharp movement; observing for 8 seconds."
+      },
+      {
+        "time_ms": 22543,
+        "state": "NORMAL",
+        "alarm": 0,
+        "sensors": "OK",
+        "event": "NEAR_FALL",
+        "message": "Continued movement; monitoring resumes."
+      },
+      {
+        "time_ms": 22845,
+        "state": "OBSERVING",
+        "alarm": 0,
+        "sensors": "OK",
+        "event": "SPIKE",
+        "message": "Sharp movement; observing for 8 seconds."
+      },
+      {
+        "time_ms": 30900,
+        "state": "NORMAL",
+        "alarm": 0,
+        "sensors": "OK",
+        "event": "NEAR_FALL",
+        "message": "Continued movement; monitoring resumes."
+      },
+      {
+        "time_ms": 31102,
+        "state": "OBSERVING",
+        "alarm": 0,
+        "sensors": "OK",
+        "event": "SPIKE",
+        "message": "Sharp movement; observing for 8 seconds."
+      }
+    ],
+    "final_count": 300,
+    "final_state": "OBSERVING",
+    "final_alarm": 0,
+    "trial": 44,
+    "first_ms": 4643,
+    "last_ms": 34766,
+    "n": 300
+  },
+  {
+    "session_id": 49,
+    "activity": "running-continuously",
+    "events": [
+      {
+        "time_ms": 44683,
+        "state": "OBSERVING",
+        "alarm": 0,
+        "sensors": "OK",
+        "event": "SPIKE",
+        "message": "Sharp movement; observing for 8 seconds."
+      },
+      {
+        "time_ms": 52740,
+        "state": "NORMAL",
+        "alarm": 0,
+        "sensors": "OK",
+        "event": "NEAR_FALL",
+        "message": "Continued movement; monitoring resumes."
+      },
+      {
+        "time_ms": 53144,
+        "state": "OBSERVING",
+        "alarm": 0,
+        "sensors": "OK",
+        "event": "SPIKE",
+        "message": "Sharp movement; observing for 8 seconds."
+      },
+      {
+        "time_ms": 61205,
+        "state": "NORMAL",
+        "alarm": 0,
+        "sensors": "OK",
+        "event": "NEAR_FALL",
+        "message": "Continued movement; monitoring resumes."
+      },
+      {
+        "time_ms": 61407,
+        "state": "OBSERVING",
+        "alarm": 0,
+        "sensors": "OK",
+        "event": "SPIKE",
+        "message": "Sharp movement; observing for 8 seconds."
+      },
+      {
+        "time_ms": 69470,
+        "state": "NORMAL",
+        "alarm": 0,
+        "sensors": "OK",
+        "event": "NEAR_FALL",
+        "message": "Continued movement; monitoring resumes."
+      },
+      {
+        "time_ms": 69672,
+        "state": "OBSERVING",
+        "alarm": 0,
+        "sensors": "OK",
+        "event": "SPIKE",
+        "message": "Sharp movement; observing for 8 seconds."
+      }
+    ],
+    "final_count": 299,
+    "final_state": "OBSERVING",
+    "final_alarm": 0,
+    "trial": 45,
+    "first_ms": 43198,
+    "last_ms": 73230,
+    "n": 299
+  },
+  {
+    "session_id": 50,
+    "activity": "run-then-stop",
+    "events": [
+      {
+        "time_ms": 135650,
+        "state": "OBSERVING",
+        "alarm": 0,
+        "sensors": "OK",
+        "event": "SPIKE",
+        "message": "Sharp movement; observing for 8 seconds."
+      },
+      {
+        "time_ms": 143698,
+        "state": "NORMAL",
+        "alarm": 0,
+        "sensors": "OK",
+        "event": "NEAR_FALL",
+        "message": "Continued movement; monitoring resumes."
+      },
+      {
+        "time_ms": 143900,
+        "state": "OBSERVING",
+        "alarm": 0,
+        "sensors": "OK",
+        "event": "SPIKE",
+        "message": "Sharp movement; observing for 8 seconds."
+      },
+      {
+        "time_ms": 151948,
+        "state": "NORMAL",
+        "alarm": 0,
+        "sensors": "OK",
+        "event": "NEAR_FALL",
+        "message": "Continued movement; monitoring resumes."
+      }
+    ],
+    "final_count": 301,
+    "final_state": "NORMAL",
+    "final_alarm": 0,
+    "trial": 46,
+    "first_ms": 134872,
+    "last_ms": 165007,
+    "n": 301
+  },
+  {
+    "session_id": 51,
+    "activity": "run-then-stop",
+    "events": [
+      {
+        "time_ms": 173798,
+        "state": "OBSERVING",
+        "alarm": 0,
+        "sensors": "OK",
+        "event": "SPIKE",
+        "message": "Sharp movement; observing for 8 seconds."
+      },
+      {
+        "time_ms": 181843,
+        "state": "NORMAL",
+        "alarm": 0,
+        "sensors": "OK",
+        "event": "NEAR_FALL",
+        "message": "Continued movement; monitoring resumes."
+      },
+      {
+        "time_ms": 182347,
+        "state": "OBSERVING",
+        "alarm": 0,
+        "sensors": "OK",
+        "event": "SPIKE",
+        "message": "Sharp movement; observing for 8 seconds."
+      },
+      {
+        "time_ms": 190401,
+        "state": "UNCERTAIN",
+        "alarm": 0,
+        "sensors": "OK",
+        "event": "UNCERTAIN",
+        "message": "Mixed evidence; continuing one-second checks."
+      },
+      {
+        "time_ms": 195441,
+        "state": "FALL_LATCHED",
+        "alarm": 1,
+        "sensors": "OK",
+        "event": "POSSIBLE_FALL",
+        "message": "Sustained stillness; reset board to clear alarm."
+      }
+    ],
+    "final_count": 301,
+    "final_state": "FALL_LATCHED",
+    "final_alarm": 1,
+    "trial": 47,
+    "first_ms": 172920,
+    "last_ms": 203079,
+    "n": 301
+  },
+  {
+    "session_id": 52,
+    "activity": "run-then-stop",
+    "events": [],
+    "final_count": 300,
+    "final_state": "FALL_LATCHED",
+    "final_alarm": 1,
+    "trial": 48,
+    "first_ms": 208981,
+    "last_ms": 239003,
+    "n": 300
+  },
+  {
+    "session_id": 54,
+    "activity": "run-then-stop",
+    "events": [
+      {
+        "time_ms": 107711,
+        "state": "OBSERVING",
+        "alarm": 0,
+        "sensors": "OK",
+        "event": "SPIKE",
+        "message": "Sharp movement; observing for 8 seconds."
+      },
+      {
+        "time_ms": 115763,
+        "state": "NORMAL",
+        "alarm": 0,
+        "sensors": "OK",
+        "event": "NEAR_FALL",
+        "message": "Continued movement; monitoring resumes."
+      },
+      {
+        "time_ms": 116368,
+        "state": "OBSERVING",
+        "alarm": 0,
+        "sensors": "OK",
+        "event": "SPIKE",
+        "message": "Sharp movement; observing for 8 seconds."
+      },
+      {
+        "time_ms": 124415,
+        "state": "FALL_LATCHED",
+        "alarm": 1,
+        "sensors": "OK",
+        "event": "POSSIBLE_FALL",
+        "message": "Sustained stillness; reset board to clear alarm."
+      }
+    ],
+    "final_count": 300,
+    "final_state": "FALL_LATCHED",
+    "final_alarm": 1,
+    "trial": 49,
+    "first_ms": 105519,
+    "last_ms": 135562,
+    "n": 300
+  },
+  {
+    "session_id": 55,
+    "activity": "run-then-stop",
+    "events": [
+      {
+        "time_ms": 15858,
+        "state": "OBSERVING",
+        "alarm": 0,
+        "sensors": "OK",
+        "event": "SPIKE",
+        "message": "Sharp movement; observing for 8 seconds."
+      },
+      {
+        "time_ms": 23916,
+        "state": "NORMAL",
+        "alarm": 0,
+        "sensors": "OK",
+        "event": "NEAR_FALL",
+        "message": "Continued movement; monitoring resumes."
+      },
+      {
+        "time_ms": 24117,
+        "state": "OBSERVING",
+        "alarm": 0,
+        "sensors": "OK",
+        "event": "SPIKE",
+        "message": "Sharp movement; observing for 8 seconds."
+      },
+      {
+        "time_ms": 32175,
+        "state": "NORMAL",
+        "alarm": 0,
+        "sensors": "OK",
+        "event": "NEAR_FALL",
+        "message": "Continued movement; monitoring resumes."
+      }
+    ],
+    "final_count": 300,
+    "final_state": "NORMAL",
+    "final_alarm": 0,
+    "trial": 50,
+    "first_ms": 14776,
+    "last_ms": 44819,
+    "n": 300
+  }
+]

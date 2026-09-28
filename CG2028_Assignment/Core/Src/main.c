@@ -9,6 +9,13 @@
 #include "main.h"
 #include "motion_metrics.h"
 #include "fall_detector.h"
+#include "alarm_button.h"
+#include "telegram_alerts.h"
+#include "telegram_network.h"
+#include "FreeRTOS.h"
+#include "task.h"
+#include "semphr.h"
+#include "../../Drivers/BSP/B-L4S5I-IOT01/stm32l4s5i_iot01.h"
 #include "../../Drivers/BSP/B-L4S5I-IOT01/stm32l4s5i_iot01_accelero.h"
 #include "../../Drivers/BSP/B-L4S5I-IOT01/stm32l4s5i_iot01_gyro.h"
 
@@ -23,10 +30,14 @@
 #define EWMA_ALPHA_GYRO_PERCENT 25
 #define SAMPLE_INTERVAL_MS 100
 #define NORMAL_LED_DELAY_MS 1000
-#define FALL_LED_DELAY_MS 150
+#define FALL_LED_DELAY_MS 50
+#define LONG_LIE_LED_PERIOD_MS 1000U
 
 static void UART1_Init(void);
+static void SystemClock_Config(void);
 static void UART_Send(const char *text);
+static void SensorTask(void *unused);
+static void NetworkTask(void *unused);
 static void FormatMetric(char *text, size_t size, bool valid, double value);
 static void ResetMotionProcessing(int accel_asm[3], int gyro_asm[3],
                                   int accel_c[3], int gyro_c[3],
@@ -40,13 +51,71 @@ extern int ewma_filter(int new_data, int old_output, int alpha_percent);
 int ewma_filter_C(int new_data, int old_output, int alpha_percent);
 
 UART_HandleTypeDef huart1;
+volatile uint8_t ES_WIFI_ConnectStage;
+static SemaphoreHandle_t uart_mutex;
+static AlertQueue alerts;
 
 int main(void)
 {
     HAL_Init();
+    SystemClock_Config();
     UART1_Init();
+    uart_mutex = xSemaphoreCreateMutex();
+    AlertQueue_Init(&alerts);
+    configASSERT(uart_mutex != NULL);
+    configASSERT(xTaskCreate(SensorTask, "sensor", 2048U, NULL, 3U, NULL) == pdPASS);
+    configASSERT(xTaskCreate(NetworkTask, "network", 4096U, NULL, 1U, NULL) == pdPASS);
+    vTaskStartScheduler();
+    for (;;) {}
+}
+
+static void SystemClock_Config(void)
+{
+    RCC_OscInitTypeDef osc = {0};
+    RCC_ClkInitTypeDef clk = {0};
+
+    /* The ST Wi-Fi SPI3 example uses a 10 MHz SPI clock derived from
+     * an 80 MHz system clock. The board also needs this speed for TLS. */
+    __HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE1);
+    osc.OscillatorType = RCC_OSCILLATORTYPE_MSI;
+    osc.MSIState = RCC_MSI_ON;
+    osc.MSICalibrationValue = RCC_MSICALIBRATION_DEFAULT;
+    osc.MSIClockRange = RCC_MSIRANGE_6; /* 4 MHz */
+    osc.PLL.PLLState = RCC_PLL_ON;
+    osc.PLL.PLLSource = RCC_PLLSOURCE_MSI;
+    osc.PLL.PLLM = 1;
+    osc.PLL.PLLN = 40;
+    osc.PLL.PLLP = RCC_PLLP_DIV7;
+    osc.PLL.PLLQ = RCC_PLLQ_DIV2;
+    osc.PLL.PLLR = RCC_PLLR_DIV2;
+    if (HAL_RCC_OscConfig(&osc) != HAL_OK) for (;;) {}
+
+    clk.ClockType = RCC_CLOCKTYPE_HCLK | RCC_CLOCKTYPE_SYSCLK |
+                    RCC_CLOCKTYPE_PCLK1 | RCC_CLOCKTYPE_PCLK2;
+    clk.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
+    clk.AHBCLKDivider = RCC_SYSCLK_DIV1;
+    clk.APB1CLKDivider = RCC_HCLK_DIV1;
+    clk.APB2CLKDivider = RCC_HCLK_DIV1;
+    if (HAL_RCC_ClockConfig(&clk, FLASH_LATENCY_4) != HAL_OK) for (;;) {}
+}
+
+static void NetworkTask(void *unused)
+{
+    (void)unused;
+    TelegramNetwork_Run(&alerts, UART_Send);
+}
+
+static void SensorTask(void *unused)
+{
+    (void)unused;
 
     BSP_LED_Init(LED2);
+    USER_BUTTON_GPIO_CLK_ENABLE();
+    GPIO_InitTypeDef button_gpio = {0};
+    button_gpio.Pin = USER_BUTTON_PIN;
+    button_gpio.Mode = GPIO_MODE_INPUT;
+    button_gpio.Pull = GPIO_NOPULL; /* BSP board supplies the button bias. */
+    HAL_GPIO_Init(USER_BUTTON_GPIO_PORT, &button_gpio);
     /* The BSP can leave a driver uninitialized after a failed sensor-ID read.
      * Check both return values AND errors hidden by its I2C recovery routine. */
     uint32_t init_errors = BSP_SENSOR_IO_GetErrorCount();
@@ -72,23 +141,65 @@ int main(void)
     uint32_t last_report_ms = HAL_GetTick() - 1000U;
     uint32_t previous_read_ms = 0;
     bool has_previous_read = false;
-    FallDetector detector;
+    /* Keep the three-second history buffer out of the main call stack. */
+    static FallDetector detector;
     FallDetector_Init(&detector);
+    UART_Send("ALERT Delivery=PENDING Network=STARTING\r\n");
+    AlarmButton button;
+    AlarmButton_Init(&button,
+        HAL_GPIO_ReadPin(USER_BUTTON_GPIO_PORT, USER_BUTTON_PIN) == GPIO_PIN_RESET,
+        HAL_GetTick());
 
     while (1)
     {
         /* LED timing is independent of sensor sampling: a slow blink must
          * not stop sensor reads for a whole second. */
         uint32_t now_ms = HAL_GetTick();
+        bool pressed = HAL_GPIO_ReadPin(USER_BUTTON_GPIO_PORT, USER_BUTTON_PIN) == GPIO_PIN_RESET;
+        if (AlarmButton_Update(&button, pressed, detector.fall_latched, now_ms))
+        {
+            bool fault_before_reset = detector.sensor_fault_active || !sensors_ready;
+            FallDetector_ManualReset(&detector);
+            taskENTER_CRITICAL();
+            AlertQueue_ResetEpisode(&alerts);
+            taskEXIT_CRITICAL();
+            ResetMotionProcessing(accel_ewma_asm, gyro_ewma_asm,
+                                  accel_ewma_c, gyro_ewma_c,
+                                  &accel_metrics_state, &gyro_metrics_state);
+            has_previous_read = false;
+            BSP_LED_Off(LED2);
+            last_led_ms = now_ms;
+            if (fault_before_reset)
+            {
+                FallDetectorInput faulty = {.time_ms = now_ms, .valid = false};
+                (void)FallDetector_Update(&detector, &faulty);
+            }
+            char reset_message[160];
+            snprintf(reset_message, sizeof(reset_message),
+                     "DETECTOR TimeMs=%lu State=%s Alarm=0 Sensors=%s Event=MANUAL_RESET Resetting alarm; collecting baseline.\r\n",
+                     (unsigned long)now_ms, FallDetector_StateName(detector.state),
+                     fault_before_reset ? "FAULT" : "OK");
+            UART_Send(reset_message);
+        }
+        if (detector.state == FALL_STATE_LONG_LIE)
+        {
+            /* Two short flashes per second distinguish escalation from fall. */
+            uint32_t phase = now_ms % LONG_LIE_LED_PERIOD_MS;
+            if (phase < 100U || (phase >= 200U && phase < 300U)) BSP_LED_On(LED2);
+            else BSP_LED_Off(LED2);
+        }
+        else
+        {
         uint32_t led_interval_ms = detector.fall_latched ? FALL_LED_DELAY_MS : NORMAL_LED_DELAY_MS;
         if ((uint32_t)(now_ms - last_led_ms) >= led_interval_ms)
         {
             BSP_LED_Toggle(LED2);
             last_led_ms = now_ms;
         }
+        }
         if ((uint32_t)(now_ms - last_sample_ms) < SAMPLE_INTERVAL_MS)
         {
-            HAL_Delay(1);
+            vTaskDelay(pdMS_TO_TICKS(1U));
             continue;
         }
 
@@ -223,19 +334,36 @@ int main(void)
         MotionMetrics gyro_metrics = MotionMetrics_Update(
             &gyro_metrics_state, gyro_dps, sample_time_ms);
 
-        /* Prototype 1: first acceleration-MSD crossing starts the timer.
-         * Sampling continues during the eight seconds. The helper checks
-         * [5,6), [6,7), [7,8) second averages, extending one block at a time
-         * if uncertain. Both sensors must agree; a fall stays latched. */
+        /* Prototype 2: a crossing starts a provisional candidate. Its first
+         * two seconds must exceed the preceding three-second MSD baseline by
+         * fourfold (with a noise floor). Qualified candidates retain the
+         * original [5,6), [6,7), [7,8) checks, extending if uncertain.
+         * Both sensors must agree; a fall stays latched. */
         detector_input.msd_valid = accel_metrics.msd_valid && gyro_metrics.msd_valid;
         detector_input.accel_msd = accel_metrics.msd;
         detector_input.gyro_msd = gyro_metrics.msd;
         detector_input.gyro_magnitude = gyro_metrics.magnitude;
         FallDetectorEvent detector_event = FallDetector_Update(&detector, &detector_input);
-        if (detector_event == FALL_EVENT_FALL)
+        if (detector_event == FALL_EVENT_FALL || detector_event == FALL_EVENT_LONG_LIE)
         {
             BSP_LED_On(LED2);
             last_led_ms = HAL_GetTick();
+            AlertKind kind = detector_event == FALL_EVENT_FALL ? ALERT_FALL : ALERT_LONG_LIE;
+            taskENTER_CRITICAL();
+            bool queued = AlertQueue_Event(&alerts, kind, sample_time_ms);
+            unsigned int queue_count = alerts.count;
+            unsigned int dropped_count = alerts.dropped;
+            taskEXIT_CRITICAL();
+            if (queued)
+            {
+                char alert_status[96];
+                snprintf(alert_status, sizeof(alert_status),
+                         "ALERT TimeMs=%lu Kind=%s Delivery=PENDING Queue=%u Dropped=%u\r\n",
+                         (unsigned long)sample_time_ms,
+                         kind == ALERT_FALL ? "FALL" : "LONG_LIE",
+                         queue_count, dropped_count);
+                UART_Send(alert_status);
+            }
         }
 
         char accel_msd[24], accel_magnitude_slope[24], accel_msd_slope[24];
@@ -308,25 +436,43 @@ static void ReportDetectorStatus(const FallDetector *detector, FallDetectorEvent
     case FALL_EVENT_READY:
         name = "READY"; message = "Monitoring movement."; break;
     case FALL_EVENT_SPIKE:
-        name = "SPIKE"; message = "Sharp movement; observing for 8 seconds."; break;
+        name = "SPIKE"; message = "Provisional spike; checking two-second disturbance."; break;
+    case FALL_EVENT_DISTURBANCE_CONFIRMED:
+        name = "DISTURBANCE_CONFIRMED"; message = "Unusual disturbance; continuing original observation."; break;
+    case FALL_EVENT_DISTURBANCE_REJECTED:
+        name = "DISTURBANCE_REJECTED"; message = "Increase below threshold; monitoring resumes."; break;
+    case FALL_EVENT_DISTURBANCE_UNKNOWN:
+        name = "DISTURBANCE_UNKNOWN"; message = "Insufficient history/coverage; collecting baseline (~5 seconds)."; break;
     case FALL_EVENT_NEAR_FALL:
         name = "NEAR_FALL"; message = "Continued movement; monitoring resumes."; break;
     case FALL_EVENT_FALL:
-        name = "POSSIBLE_FALL"; message = "Sustained stillness; reset board to clear alarm."; break;
+        name = "POSSIBLE_FALL"; message = "Sustained stillness; hold user button for two seconds to clear alarm."; break;
+    case FALL_EVENT_LONG_LIE:
+        name = "LONG_LIE"; message = "Thirty complete quiet seconds after fall (experimental demo setting)."; break;
     case FALL_EVENT_UNCERTAIN:
         name = "UNCERTAIN"; message = "Mixed evidence; continuing one-second checks."; break;
     case FALL_EVENT_SENSOR_FAULT:
         name = "SENSOR_FAULT"; message = "Invalid sensor data; check connection and reset board."; break;
     case FALL_EVENT_RESTARTED:
-        name = "RESTARTED"; message = "Sampling interrupted/recovered; warming up for 2 seconds."; break;
+        name = "RESTARTED"; message = "Sampling interrupted/recovered; collecting baseline (~5 seconds)."; break;
     case FALL_EVENT_NONE:
         break;
     }
-    char text[256];
+    char gate_metrics[112] = "";
+    if (event == FALL_EVENT_DISTURBANCE_CONFIRMED ||
+        event == FALL_EVENT_DISTURBANCE_REJECTED)
+    {
+        snprintf(gate_metrics, sizeof(gate_metrics),
+                 " BaselineMSD=%.6e EventMSD=%.6e IncreaseRatio=%.6e",
+                 detector->candidate_baseline_mean, detector->event_accel_msd_mean,
+                 detector->disturbance_ratio);
+    }
+    char text[384];
     snprintf(text, sizeof(text),
-             "DETECTOR TimeMs=%lu State=%s Alarm=%u Sensors=%s Event=%s %s\r\n",
+             "DETECTOR TimeMs=%lu State=%s Alarm=%u Sensors=%s Event=%s %s%s\r\n",
              (unsigned long)now_ms, FallDetector_StateName(detector->state),
-             detector->fall_latched ? 1U : 0U, sensors_valid ? "OK" : "FAULT", name, message);
+             detector->fall_latched ? 1U : 0U, sensors_valid ? "OK" : "FAULT", name, message,
+             gate_metrics);
     UART_Send(text);
 }
 
@@ -354,7 +500,24 @@ int ewma_filter_C(int new_data, int old_output, int alpha_percent)
 
 static void UART_Send(const char *text)
 {
+    bool locked = xTaskGetSchedulerState() == taskSCHEDULER_RUNNING &&
+                  xSemaphoreTake(uart_mutex, pdMS_TO_TICKS(50U)) == pdTRUE;
+    if (xTaskGetSchedulerState() == taskSCHEDULER_RUNNING && !locked) return;
     HAL_UART_Transmit(&huart1, (uint8_t *)text, strlen(text), HAL_MAX_DELAY);
+    if (locked) xSemaphoreGive(uart_mutex);
+}
+
+void vApplicationStackOverflowHook(TaskHandle_t task, char *name)
+{
+    (void)task; (void)name;
+    __disable_irq();
+    for (;;) {}
+}
+
+void vApplicationMallocFailedHook(void)
+{
+    __disable_irq();
+    for (;;) {}
 }
 
 static void UART1_Init(void)
