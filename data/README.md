@@ -132,6 +132,20 @@ separately. Sensor values are saved in full even though they no longer scroll
 past in the console. Test/free databases also retain their detector diagnostics.
 When console output is redirected, updates are plain lines instead of in-place
 redraws.
+Each run appends a new session to the same files, preserving earlier runs.
+Starting the board alone does not save data on the computer: the Python logger
+must also be running. No extra Python packages or separate Conda environment are
+needed on Windows, macOS, or Linux.
+
+On Windows, find the board under **Device Manager → Ports (COM & LPT)** and use
+its COM number. For example:
+
+```powershell
+python tools\record_activity.py --port COM3 --activity normal-walking --notes "Trial 1"
+```
+
+Close CubeIDE's serial terminal, PuTTY, or another serial viewer first; only one
+program can own the COM port at a time.
 
 Each recording appends to the files for its mode. To use custom filenames,
 `--db` and `--csv` select that mode's pair directly:

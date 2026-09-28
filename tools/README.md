@@ -1,10 +1,12 @@
 # Record tests, free activity and calibration
 
-`record_activity.py` saves UART readings on macOS, Linux, and Windows.
-Windows requires `python -m pip install pyserial`; macOS and Linux use only the
-Python standard library. **Choose
-exactly one mode:** `--test`, `--free`, or `--calibration`. There is no default
-recording mode; the old `--dataset` option has been removed.
+`record_activity.py` runs on Windows, macOS, or Linux, reads the application's UART
+output, and appends complete samples to **both a SQLite database and a CSV file**.
+No additional Python packages are needed. **Rebuild and flash the updated `CG2028_Assignment`
+firmware before recording:** it now sends vector magnitude instead of the
+arithmetic mean across axes. Old `Avg` serial output produces an explicit error
+so that averages cannot be mistaken for magnitudes. Sampling remains at 100 ms
+and the baud rate remains 115200.
 
 **Prototype 2 requires rebuilding and flashing `CG2028_Assignment` in CubeIDE.**
 It adds a comparison with recent baseline activity before a spike enters the
@@ -19,13 +21,14 @@ what labels you must provide; it does not reconfigure the detector.
 
 ## Start a recording
 
-1. Build and flash `CG2028_Assignment` with Prototype 2, and click Resume in
-   CubeIDE if execution is paused at `main()`. Reset the board between tests so
-   a previous latched fall alarm does not carry into the next recording.
-2. Close `screen` or another serial viewer. For a named screen session, use
-   `screen -S stm32 -X quit`; otherwise use `screen -ls` and
-   `screen -S SESSION_ID -X quit` from another Terminal tab.
-3. From the repository root, choose a command:
+1. Build/run `CG2028_Assignment` on the board and click Resume in CubeIDE if it
+   is paused at `main()`.
+2. Close CubeIDE's serial terminal, `screen`, PuTTY, or any other serial viewer so
+   the logger can own the port. On Windows, find the board under **Device Manager
+   → Ports (COM & LPT)**.
+   For a named session, use `screen -S stm32 -X quit` in another Terminal tab.
+   Otherwise, use `screen -ls` and `screen -S SESSION_ID -X quit`.
+3. Run:
 
    ```bash
    python3 tools/record_activity.py --test --name fall-test-3 --verdict near-fall
@@ -57,10 +60,37 @@ Each run appends a new session with an automatically assigned session ID, so
 you can repeat the same activity name and distinguish trials by session and notes.
 
 The logger detects the USB serial device and uses 115200 baud, 8 data bits,
-no parity, 1 stop bit and no flow control. If several devices are connected,
-choose `--port /dev/cu.usbmodemXXXX` using the current device name from
-`ls /dev/cu.usbmodem*`. On Windows, it detects the ST-LINK virtual COM port;
-use `--port COM5` (with your current COM number) if more than one board is connected.
+no parity, 1 stop bit and no flow control. If multiple devices are connected,
+choose explicitly using `--port /dev/cu.usbmodemXXXX` (use the current name from
+`ls /dev/cu.usbmodem*`). The detected name can change when reconnecting the board.
+
+On Windows, automatic detection reads the registered COM ports. If exactly one is
+present it is selected; if there is more than one, choose the board explicitly:
+
+```powershell
+python tools\record_activity.py --port COM3 --activity normal-walking --notes "Trial 1"
+```
+
+If no Windows port is found, check **Device Manager → Ports (COM & LPT)** and
+rerun with that `COMx` name. CubeIDE's serial terminal, PuTTY, and other serial
+monitors must release the port before recording.
+
+Watch the readings and saved-row count in Terminal. **Each run automatically
+stops after 30 seconds**, keeping every complete sample saved to SQLite and CSV.
+The timer starts when the recording session opens, including time spent waiting
+for the board, so resume the board before starting. Partial samples at the time
+limit are discarded. The board continues running after the logger stops.
+You can **press Ctrl+C to stop early**; there is no `screen` shortcut involved.
+An explicit `--duration 60` overrides the default for a one-minute recording.
+If `--samples` is supplied, recording ends at that count or the time limit,
+whichever happens first.
+The logger enables Ctrl+C handling and normal newline output on its interactive
+terminal at startup, including when an earlier program left those settings
+disabled. Redirected files and pipes are left alone.
+
+The board **and this logger** must be running and connected to record. Nothing is
+recorded while the logger is closed, the board is paused, or the computer sleeps.
+If disconnected, saved data is kept; reconnect and run the command again.
 
 | Mode | Automatic stopping condition | If a fall is detected early |
 |---|---|---|
