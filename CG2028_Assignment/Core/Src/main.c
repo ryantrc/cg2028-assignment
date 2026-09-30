@@ -281,7 +281,6 @@ static void SensorTask(void *unused)
         for (int axis = 0; axis < 3; axis++)
         {
             gyro_raw_int[axis] = (int)gyro_raw_float[axis];
-            // convert float to int, truncating the decimal part
 
             accel_ewma_asm[axis] = ewma_filter(
                 (int)accel_raw_i16[axis],
@@ -293,7 +292,6 @@ static void SensorTask(void *unused)
                 gyro_ewma_asm[axis],
                 EWMA_ALPHA_GYRO_PERCENT);
 
-            /* get accelerometer and gyroscope filtered values */
 
             accel_ewma_c[axis] = ewma_filter_C(
                 (int)accel_raw_i16[axis],
@@ -305,7 +303,6 @@ static void SensorTask(void *unused)
                 gyro_ewma_c[axis],
                 EWMA_ALPHA_GYRO_PERCENT);
 
-            /* verify with C implementation */
         }
 
         /* Accelerometer filtered readings are in meters per second squared. */

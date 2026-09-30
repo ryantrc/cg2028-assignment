@@ -15,6 +15,8 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <errno.h>
+#include <sys/time.h>
 
 #define TELEGRAM_HOST "api.telegram.org"
 #define NTP_HOST "time.google.com"
@@ -53,6 +55,19 @@ static mbedtls_time_t NetworkTime(mbedtls_time_t *output)
         (mbedtls_time_t)((uint32_t)(HAL_GetTick() - network.time_tick_ms) / 1000U);
     if (output) *output = now;
     return now;
+}
+
+int _gettimeofday(struct timeval *value, void *timezone)
+{
+    (void)timezone;
+    if (value == NULL || !network.time_ready)
+    {
+        errno = EINVAL;
+        return -1;
+    }
+    value->tv_sec = (time_t)NetworkTime(NULL);
+    value->tv_usec = (suseconds_t)((uint32_t)(HAL_GetTick() - network.time_tick_ms) % 1000U) * 1000;
+    return 0;
 }
 
 int mbedtls_hardware_poll(void *data, unsigned char *output,

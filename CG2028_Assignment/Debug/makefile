@@ -7,15 +7,12 @@
 
 RM := rm -rf
 
-# Prevent a credential-bearing ELF from overwriting tracked Debug artifacts.
-ifneq ($(wildcard ../Core/Inc/telegram_secrets.h),)
-ifeq ($(ALLOW_PRIVATE_BUILD),)
-$(error Use tools/build_telegram.py to build with local credentials)
-endif
-endif
-
 # All of the sources participating in the build are defined here
 -include sources.mk
+-include ThirdParty/mbedtls/library/subdir.mk
+-include ThirdParty/FreeRTOS/portable/MemMang/subdir.mk
+-include ThirdParty/FreeRTOS/portable/GCC/ARM_CM4F/subdir.mk
+-include ThirdParty/FreeRTOS/subdir.mk
 -include Drivers/STM32L4xx_HAL_Driver/Src/Legacy/subdir.mk
 -include Drivers/STM32L4xx_HAL_Driver/Src/subdir.mk
 -include Drivers/BSP/Components/st25dv/subdir.mk
@@ -27,8 +24,6 @@ endif
 -include Drivers/BSP/B-L4S5I-IOT01/subdir.mk
 -include Core/Startup/subdir.mk
 -include Core/Src/subdir.mk
--include ThirdParty/FreeRTOS/subdir.mk
--include ThirdParty/mbedtls/subdir.mk
 -include objects.mk
 
 ifneq ($(MAKECMDGOALS),clean)
@@ -78,7 +73,7 @@ main-build: CG2028_Assignment.elf secondary-outputs
 
 # Tool invocations
 CG2028_Assignment.elf CG2028_Assignment.map: $(OBJS) $(USER_OBJS) C:\Users\kaiji\Documents\CG2028\cg2028-assignment\CG2028_Assignment\STM32L4S5VITX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
-	arm-none-eabi-gcc -o "CG2028_Assignment.elf" $(OBJS) $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"C:\Users\kaiji\Documents\CG2028\cg2028-assignment\CG2028_Assignment\STM32L4S5VITX_FLASH.ld" --specs=nosys.specs -Wl,-Map="CG2028_Assignment.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -u _printf_float -Wl,--start-group -lc -lm -Wl,--end-group
+	arm-none-eabi-gcc -o "CG2028_Assignment.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"C:\Users\kaiji\Documents\CG2028\cg2028-assignment\CG2028_Assignment\STM32L4S5VITX_FLASH.ld" --specs=nosys.specs -Wl,-Map="CG2028_Assignment.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -u _printf_float -Wl,--start-group -lc -lm -Wl,--end-group
 	@echo 'Finished building target: $@'
 	@echo ' '
 

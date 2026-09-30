@@ -32,13 +32,22 @@ Core/Src/stm32l4xx_it.o: ../Core/Src/stm32l4xx_it.c ../Core/Inc/main.h \
  ../Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_pwr.h \
  ../Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_pwr_ex.h \
  ../Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_qspi.h \
+ ../Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_rng.h \
  ../Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_spi.h \
  ../Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_spi_ex.h \
  ../Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_tim.h \
  ../Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_tim_ex.h \
  ../Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_uart.h \
  ../Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_uart_ex.h \
- ../Core/Inc/stm32l4xx_it.h
+ ../Core/Inc/stm32l4xx_it.h ../Core/Inc/es_wifi_io.h \
+ ../ThirdParty/FreeRTOS/include/FreeRTOS.h ../Core/Inc/FreeRTOSConfig.h \
+ ../ThirdParty/FreeRTOS/include/projdefs.h \
+ ../ThirdParty/FreeRTOS/include/portable.h \
+ ../ThirdParty/FreeRTOS/include/deprecated_definitions.h \
+ ../ThirdParty/FreeRTOS/portable/GCC/ARM_CM4F/portmacro.h \
+ ../ThirdParty/FreeRTOS/include/mpu_wrappers.h \
+ ../ThirdParty/FreeRTOS/include/task.h \
+ ../ThirdParty/FreeRTOS/include/list.h
 ../Core/Inc/main.h:
 ../Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal.h:
 ../Core/Inc/stm32l4xx_hal_conf.h:
@@ -73,6 +82,7 @@ Core/Src/stm32l4xx_it.o: ../Core/Src/stm32l4xx_it.c ../Core/Inc/main.h \
 ../Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_pwr.h:
 ../Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_pwr_ex.h:
 ../Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_qspi.h:
+../Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_rng.h:
 ../Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_spi.h:
 ../Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_spi_ex.h:
 ../Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_tim.h:
@@ -80,3 +90,13 @@ Core/Src/stm32l4xx_it.o: ../Core/Src/stm32l4xx_it.c ../Core/Inc/main.h \
 ../Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_uart.h:
 ../Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_uart_ex.h:
 ../Core/Inc/stm32l4xx_it.h:
+../Core/Inc/es_wifi_io.h:
+../ThirdParty/FreeRTOS/include/FreeRTOS.h:
+../Core/Inc/FreeRTOSConfig.h:
+../ThirdParty/FreeRTOS/include/projdefs.h:
+../ThirdParty/FreeRTOS/include/portable.h:
+../ThirdParty/FreeRTOS/include/deprecated_definitions.h:
+../ThirdParty/FreeRTOS/portable/GCC/ARM_CM4F/portmacro.h:
+../ThirdParty/FreeRTOS/include/mpu_wrappers.h:
+../ThirdParty/FreeRTOS/include/task.h:
+../ThirdParty/FreeRTOS/include/list.h:

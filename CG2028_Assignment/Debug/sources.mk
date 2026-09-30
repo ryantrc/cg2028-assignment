@@ -33,4 +33,8 @@ Drivers/BSP/Components/lsm6dsl \
 Drivers/BSP/Components/st25dv \
 Drivers/STM32L4xx_HAL_Driver/Src/Legacy \
 Drivers/STM32L4xx_HAL_Driver/Src \
+ThirdParty/FreeRTOS \
+ThirdParty/FreeRTOS/portable/GCC/ARM_CM4F \
+ThirdParty/FreeRTOS/portable/MemMang \
+ThirdParty/mbedtls/library \
 
