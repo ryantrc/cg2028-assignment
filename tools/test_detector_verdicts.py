@@ -217,6 +217,93 @@ class VerdictRecorderTests(unittest.TestCase):
         self.append(run, "UNCERTAIN")
         self.assertEqual(self.row(run)["observed_verdict"], "UNCERTAIN")
 
+    def test_low_disturbance_keeps_candidate_open_without_a_spike_line(self):
+        run = self.start()
+        self.append(run, "DISTURBANCE_LOW")
+        self.assertEqual(self.row(run)["observed_verdict"], "OBSERVATION_INCOMPLETE")
+        self.append(run)  # NORMAL status alone cannot supply a missing decision.
+        self.assertEqual(self.row(run)["observed_verdict"], "OBSERVATION_INCOMPLETE")
+
+    def test_movement_continued_closes_low_candidate_with_neutral_summary(self):
+        run = self.start(activity="fall")
+        self.append(run, "SPIKE")
+        self.append(run, "DISTURBANCE_LOW", message="IncreaseRatio=1.200000e+00")
+        self.append(run, "MOVEMENT_CONTINUED", message="Continued movement; no near-fall inferred.")
+        self.append(run, "READY")
+        row = self.row(run)
+        self.assertEqual((row["observed_verdict"], row["verdict_source"]),
+                         ("MOVEMENT_CONTINUED", "FIRMWARE_EVENT"))
+        self.assertEqual((row["near_fall_count"], row["possible_fall_count"]), (0, 0))
+        self.assertEqual(row["event_count"], 4)
+        raw = self.recorder.connection.execute(
+            "SELECT event,message FROM events WHERE run_id=? ORDER BY event_id", (run,)
+        ).fetchall()
+        self.assertEqual(tuple(raw[1]), ("DISTURBANCE_LOW", "IncreaseRatio=1.200000e+00"))
+        self.assertEqual(tuple(raw[2]), ("MOVEMENT_CONTINUED", "Continued movement; no near-fall inferred."))
+        self.recorder.close()
+        self.recorder = VerdictRecorder(self.db, self.csv)
+        self.assertEqual(self.csv_rows()[0]["observed_verdict"], "MOVEMENT_CONTINUED")
+
+    def test_movement_continued_can_be_first_observed_resolution(self):
+        run = self.start()
+        self.append(run, "MOVEMENT_CONTINUED")
+        self.assertEqual(self.row(run)["observed_verdict"], "MOVEMENT_CONTINUED")
+
+    def test_movement_continued_does_not_resolve_later_or_earlier_missing_decisions(self):
+        later = self.start(session=1)
+        self.append(later, "MOVEMENT_CONTINUED")
+        self.append(later, "DISTURBANCE_LOW")
+        self.assertEqual(self.row(later)["observed_verdict"], "OBSERVATION_INCOMPLETE")
+        earlier = self.start(session=2)
+        self.append(earlier, "SPIKE")
+        self.append(earlier)  # Missed resolution of this earlier candidate.
+        self.append(earlier, "SPIKE")
+        self.append(earlier, "DISTURBANCE_LOW")
+        self.append(earlier, "MOVEMENT_CONTINUED")
+        self.assertEqual(self.row(earlier)["observed_verdict"], "OBSERVATION_INCOMPLETE")
+
+    def test_low_disturbance_can_end_in_a_confirmed_fall(self):
+        run = self.start(activity="normal")
+        self.append(run, "SPIKE")
+        self.append(run, "DISTURBANCE_LOW")
+        self.append(run, "POSSIBLE_FALL")
+        row = self.row(run)
+        self.assertEqual((row["observed_verdict"], row["verdict_source"]),
+                         ("POSSIBLE_FALL", "FIRMWARE_EVENT"))
+
+    def test_neutral_movement_does_not_erase_prior_near_fall_or_fall(self):
+        for index, decision in enumerate(("NEAR_FALL", "POSSIBLE_FALL"), 1):
+            with self.subTest(decision=decision):
+                run = self.start(session=index)
+                self.append(run, decision)
+                if decision == "POSSIBLE_FALL":
+                    self.append(run, "MANUAL_RESET", "WARMUP")
+                    self.append(run, "READY")
+                self.append(run, "SPIKE")
+                self.append(run, "DISTURBANCE_LOW")
+                self.append(run, "MOVEMENT_CONTINUED")
+                self.assertEqual(self.row(run)["observed_verdict"], decision)
+
+    def test_current_fault_or_uncertain_evidence_overrides_neutral_movement(self):
+        for index, (event, sensors, verdict) in enumerate((
+            ("SENSOR_FAULT", "FAULT", "SENSOR_FAULT"),
+            ("UNCERTAIN", "OK", "UNCERTAIN"),
+            ("DISTURBANCE_UNKNOWN", "OK", "OBSERVATION_INCOMPLETE"),
+        ), 1):
+            with self.subTest(event=event):
+                run = self.start(session=index)
+                self.append(run, "MOVEMENT_CONTINUED")
+                self.append(run, event, sensors=sensors)
+                self.assertEqual(self.row(run)["observed_verdict"], verdict)
+
+    def test_invalid_movement_resolution_does_not_close_candidate(self):
+        run = self.start()
+        self.append(run, "DISTURBANCE_LOW")
+        self.assertFalse(self.recorder.append_line(
+            run, diagnostic("MOVEMENT_CONTINUED", "OBSERVING"), START
+        ))
+        self.assertEqual(self.row(run)["observed_verdict"], "OBSERVATION_INCOMPLETE")
+
     def test_unknown_remains_incomplete_after_ready_and_later_rejection(self):
         for index, include_spike in enumerate((False, True), 1):
             with self.subTest(include_spike=include_spike):
@@ -665,11 +752,13 @@ class VerdictRecorderTests(unittest.TestCase):
 
 
 class DiagnosticParserTests(unittest.TestCase):
-    def test_prototype_two_gate_events_require_their_declared_states(self):
+    def test_disturbance_events_require_their_declared_states(self):
         for event, state in (
             ("DISTURBANCE_CONFIRMED", "OBSERVING"),
+            ("DISTURBANCE_LOW", "OBSERVING"),
             ("DISTURBANCE_REJECTED", "NORMAL"),
             ("DISTURBANCE_UNKNOWN", "WARMUP"),
+            ("MOVEMENT_CONTINUED", "NORMAL"),
         ):
             with self.subTest(event=event):
                 parsed = parse_diagnostic(diagnostic(event, state, message="Gate details retained."))

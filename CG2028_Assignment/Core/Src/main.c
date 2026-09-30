@@ -334,11 +334,12 @@ static void SensorTask(void *unused)
         MotionMetrics gyro_metrics = MotionMetrics_Update(
             &gyro_metrics_state, gyro_dps, sample_time_ms);
 
-        /* Prototype 2: a crossing starts a provisional candidate. Its first
-         * two seconds must exceed the preceding three-second MSD baseline by
-         * fourfold (with a noise floor). Qualified candidates retain the
-         * original [5,6), [6,7), [7,8) checks, extending if uncertain.
-         * Both sensors must agree; a fall stays latched. */
+        /* Prototype 3: every valid spike keeps the original [5,6), [6,7),
+         * [7,8) checks, extending if uncertain. The first two seconds versus
+         * the preceding three-second baseline qualify the NEAR_FALL label
+         * only: a low ratio cannot veto a later possible fall. Continued
+         * movement with a low ratio is neutral MOVEMENT_CONTINUED.
+         * Both sensors must agree on motion/stillness; a fall stays latched. */
         detector_input.msd_valid = accel_metrics.msd_valid && gyro_metrics.msd_valid;
         detector_input.accel_msd = accel_metrics.msd;
         detector_input.gyro_msd = gyro_metrics.msd;
@@ -436,15 +437,19 @@ static void ReportDetectorStatus(const FallDetector *detector, FallDetectorEvent
     case FALL_EVENT_READY:
         name = "READY"; message = "Monitoring movement."; break;
     case FALL_EVENT_SPIKE:
-        name = "SPIKE"; message = "Provisional spike; checking two-second disturbance."; break;
+        name = "SPIKE"; message = "Spike; observing movement and stillness."; break;
     case FALL_EVENT_DISTURBANCE_CONFIRMED:
         name = "DISTURBANCE_CONFIRMED"; message = "Unusual disturbance; continuing original observation."; break;
     case FALL_EVENT_DISTURBANCE_REJECTED:
         name = "DISTURBANCE_REJECTED"; message = "Increase below threshold; monitoring resumes."; break;
+    case FALL_EVENT_DISTURBANCE_LOW:
+        name = "DISTURBANCE_LOW"; message = "Increase below threshold; fall observation continues."; break;
     case FALL_EVENT_DISTURBANCE_UNKNOWN:
         name = "DISTURBANCE_UNKNOWN"; message = "Insufficient history/coverage; collecting baseline (~5 seconds)."; break;
     case FALL_EVENT_NEAR_FALL:
-        name = "NEAR_FALL"; message = "Continued movement; monitoring resumes."; break;
+        name = "NEAR_FALL"; message = "Strong disturbance followed by continued movement; monitoring resumes."; break;
+    case FALL_EVENT_MOVEMENT_CONTINUED:
+        name = "MOVEMENT_CONTINUED"; message = "Continued movement without a qualifying relative increase; monitoring resumes."; break;
     case FALL_EVENT_FALL:
         name = "POSSIBLE_FALL"; message = "Sustained stillness; hold user button for two seconds to clear alarm."; break;
     case FALL_EVENT_LONG_LIE:
@@ -460,6 +465,7 @@ static void ReportDetectorStatus(const FallDetector *detector, FallDetectorEvent
     }
     char gate_metrics[112] = "";
     if (event == FALL_EVENT_DISTURBANCE_CONFIRMED ||
+        event == FALL_EVENT_DISTURBANCE_LOW ||
         event == FALL_EVENT_DISTURBANCE_REJECTED)
     {
         snprintf(gate_metrics, sizeof(gate_metrics),

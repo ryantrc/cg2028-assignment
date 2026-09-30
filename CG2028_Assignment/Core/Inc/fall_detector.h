@@ -19,6 +19,8 @@
 #define FALL_BASELINE_MS 3000U
 #define FALL_DISTURBANCE_MS 2000U
 #define FALL_BASELINE_FLOOR_ACCEL_MSD 0.01
+/* Relative strength qualifies the NEAR_FALL label only. A low ratio must
+ * not cancel the subsequent observation for a possible fall. */
 #define FALL_DISTURBANCE_RATIO 4.0
 /* Coverage limits allow ordinary 100/101 ms timing jitter, not arbitrarily
  * sparse observations. A fixed ring bounds memory use at the current 10 Hz. */
@@ -69,8 +71,10 @@ typedef enum
     FALL_EVENT_SENSOR_FAULT,
     FALL_EVENT_RESTARTED,
     FALL_EVENT_DISTURBANCE_CONFIRMED,
-    FALL_EVENT_DISTURBANCE_REJECTED,
-    FALL_EVENT_DISTURBANCE_UNKNOWN
+    FALL_EVENT_DISTURBANCE_REJECTED, /* Legacy Prototype 2 event; no longer emitted. */
+    FALL_EVENT_DISTURBANCE_UNKNOWN,
+    FALL_EVENT_DISTURBANCE_LOW,
+    FALL_EVENT_MOVEMENT_CONTINUED
 } FallDetectorEvent;
 
 typedef struct
@@ -120,6 +124,7 @@ typedef struct
     double disturbance_ratio;
     unsigned int event_samples;
     uint32_t event_last_offset_ms;
+    bool disturbance_evaluated;
     bool disturbance_confirmed;
 } FallDetector;
 
@@ -167,6 +172,7 @@ static inline void FallDetector_ClearCandidate(FallDetector *detector)
     detector->disturbance_ratio = 0.0;
     detector->event_samples = 0U;
     detector->event_last_offset_ms = 0U;
+    detector->disturbance_evaluated = false;
     detector->disturbance_confirmed = false;
     FallDetector_ClearBlock(detector);
 }
@@ -414,7 +420,7 @@ static inline FallDetectorEvent FallDetector_Update(
     }
 
     uint32_t candidate_age_ms = (uint32_t)(input->time_ms - detector->candidate_start_ms);
-    if (detector->state == FALL_STATE_OBSERVING && !detector->disturbance_confirmed)
+    if (detector->state == FALL_STATE_OBSERVING && !detector->disturbance_evaluated)
     {
         if (candidate_age_ms < FALL_DISTURBANCE_MS)
         {
@@ -438,18 +444,17 @@ static inline FallDetectorEvent FallDetector_Update(
         if (denominator < FALL_BASELINE_FLOOR_ACCEL_MSD)
             denominator = FALL_BASELINE_FLOOR_ACCEL_MSD;
         detector->disturbance_ratio = detector->event_accel_msd_mean / denominator;
-        if (detector->disturbance_ratio < FALL_DISTURBANCE_RATIO)
-        {
-            detector->state = FALL_STATE_NORMAL;
-            detector->trigger_armed = false;
-            return FALL_EVENT_DISTURBANCE_REJECTED;
-        }
-        detector->disturbance_confirmed = true;
-        return FALL_EVENT_DISTURBANCE_CONFIRMED;
+        detector->disturbance_evaluated = true;
+        detector->disturbance_confirmed =
+            detector->disturbance_ratio >= FALL_DISTURBANCE_RATIO;
+        /* Keep observing in both cases. Strong prior movement can lower this
+         * ratio even when the subsequent stillness warrants a possible fall. */
+        return detector->disturbance_confirmed ?
+            FALL_EVENT_DISTURBANCE_CONFIRMED : FALL_EVENT_DISTURBANCE_LOW;
     }
 
-    /* Later spikes leave the original candidate time unchanged. Qualification
-     * uses the first two of the existing five settling seconds. */
+    /* Later spikes leave the original candidate time unchanged. The relative
+     * strength check uses the first two of the five settling seconds. */
     if (detector->state == FALL_STATE_OBSERVING &&
         candidate_age_ms < FALL_IGNORE_AFTER_TRIGGER_MS)
     {
@@ -485,7 +490,9 @@ static inline FallDetectorEvent FallDetector_Update(
         {
             detector->state = FALL_STATE_NORMAL;
             detector->trigger_armed = false;
-            return FALL_EVENT_NEAR_FALL;
+            /* Continued motion alone does not establish a near-fall. */
+            return detector->disturbance_confirmed ?
+                FALL_EVENT_NEAR_FALL : FALL_EVENT_MOVEMENT_CONTINUED;
         }
         if (detector->completed_blocks >= FALL_REQUIRED_BLOCKS &&
             detector->state != FALL_STATE_UNCERTAIN)

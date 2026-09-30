@@ -1,7 +1,8 @@
 """Build credential-bearing STM32 firmware only in the ignored build folder.
 
 Requires STM32CubeIDE's GNU ARM compiler and make on PATH, or an installation
-under C:/ST. Run: python tools/build_telegram.py
+under /Applications on macOS or C:/ST on Windows.
+Run: python3 tools/build_telegram.py
 """
 from __future__ import annotations
 
@@ -23,7 +24,14 @@ def tool(name: str, pattern: str) -> Path:
     found = shutil.which(name)
     if found:
         return Path(found)
-    candidates = sorted(Path("C:/ST").glob(pattern))
+    candidates = list(Path("C:/ST").glob(pattern))
+    mac_pattern = (
+        "STM32CubeIDE*.app/Contents/Eclipse/plugins/"
+        + pattern.split("plugins/", 1)[1].removesuffix(".exe")
+    )
+    for directory in (Path("/Applications"), Path.home() / "Applications"):
+        candidates.extend(directory.glob(mac_pattern))
+    candidates = sorted(path for path in candidates if path.is_file())
     if not candidates:
         raise SystemExit(f"Missing {name}; install STM32CubeIDE or put it on PATH")
     return candidates[-1]
@@ -31,7 +39,8 @@ def tool(name: str, pattern: str) -> Path:
 
 def omit_generated(_directory: str, names: list[str]) -> set[str]:
     suffixes = (".elf", ".o", ".d", ".su", ".cyclo", ".map", ".list", ".bin", ".hex")
-    return {name for name in names if name.endswith(suffixes)}
+    # objects.list is a make dependency, not the generated disassembly .list.
+    return {name for name in names if name != "objects.list" and name.endswith(suffixes)}
 
 
 def main() -> None:

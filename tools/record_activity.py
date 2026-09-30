@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Record the STM32's printed EWMA readings to SQLite and CSV on Windows, macOS, and Linux.
 
-On Windows, install pyserial first. Run with --help for examples and options.
+Uses Python's standard library only. Run with --help for examples and options.
 """
 
 import argparse
@@ -524,7 +524,7 @@ _WINDOWS_PORT_RE = re.compile(r"^(?:\\\\\.\\)?COM([1-9][0-9]*)$", re.IGNORECASE)
 
 
 def _normalize_windows_port(value):
-    """Return a canonical COM name from COM3 or \\.\COM3 input."""
+    r"""Return a canonical COM name from COM3 or \\.\COM3 input."""
     match = _WINDOWS_PORT_RE.fullmatch(str(value).strip())
     if not match:
         raise ValueError(
@@ -878,30 +878,6 @@ class SerialReader:
         return reader(path)
 
 
-class WindowsSerialReader:
-    """Read the ST-LINK virtual COM port through pyserial on Windows."""
-
-    def __init__(self, path):
-        import serial
-
-        self.port = serial.Serial(path, baudrate=115200, bytesize=serial.EIGHTBITS,
-                                  parity=serial.PARITY_NONE, stopbits=serial.STOPBITS_ONE,
-                                  timeout=1, xonxoff=False, rtscts=False, dsrdtr=False,
-                                  exclusive=True)
-        self.port.reset_input_buffer()
-
-    def read(self, timeout=1.0):
-        if self.port.timeout != timeout:
-            self.port.timeout = timeout
-        return self.port.read(4096) or None
-
-    def close(self):
-        self.port.close()
-
-
-SerialReader = WindowsSerialReader if sys.platform == "win32" else PosixSerialReader
-
-
 def prepare_console():
     """Enable Ctrl+C and normal line output on an interactive console.
 
@@ -987,8 +963,8 @@ class RecordingProgress:
 
 
 def record(args):
-    if Path(args.db).expanduser().resolve() == Path(args.csv).expanduser().resolve():
-        raise ValueError("The database and CSV must be different files.")
+    validate_output_paths([args.db, args.csv])
+    mode = getattr(args, "mode", "calibration")
     prepare_console()
     path = serial_port(args.port)
     reader = SerialReader(path)
@@ -1061,6 +1037,11 @@ def record(args):
                     if sample is None:
                         if line.startswith(b"WARNING:"):
                             progress.message(line.decode("ascii", errors="replace").strip(), file=sys.stderr)
+                        elif line.startswith((b"ALERT ", b"WIFI ")):
+                            # Firmware emits network status codes and module
+                            # information here, never credentials or HTTP bodies.
+                            # Display only: these are not detector verdicts or samples.
+                            progress.message(line.decode("ascii", errors="replace").strip())
                         elif line.startswith(b"DETECTOR "):
                             diagnostic = line.decode("ascii", errors="replace").strip()
                             try:

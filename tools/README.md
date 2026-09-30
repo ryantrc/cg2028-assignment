@@ -1,28 +1,28 @@
 # Record tests, free activity and calibration
 
-`record_activity.py` runs on Windows, macOS, or Linux, reads the application's UART
-output, and appends complete samples to **both a SQLite database and a CSV file**.
-No additional Python packages are needed. **Rebuild and flash the updated `CG2028_Assignment`
-firmware before recording:** it now sends vector magnitude instead of the
-arithmetic mean across axes. Old `Avg` serial output produces an explicit error
-so that averages cannot be mistaken for magnitudes. Sampling remains at 100 ms
-and the baud rate remains 115200.
+`record_activity.py` runs on Windows, macOS, or Linux and reads the board's UART
+output. It saves complete samples to SQLite. Free/calibration CSVs contain
+measurements; the test CSV contains one verdict summary per run. No additional
+Python packages are needed. Choose exactly one recording mode: `--test`,
+`--free`, or `--calibration`.
 
-**Prototype 2 requires rebuilding and flashing `CG2028_Assignment` in CubeIDE.**
-It adds a comparison with recent baseline activity before a spike enters the
-fall/near-fall observation. Sampling remains **100 ms**, baud remains **115200**,
-and the existing **25% EWMA**, Magnitude/MSD calculations, recording modes and
-file destinations are unchanged. Old `Avg` serial output is still rejected
-explicitly.
+For the current Telegram firmware, follow the
+[Mac setup, build and flash instructions](../README.md#local-setup-and-build-on-mac).
+Build with `python3 tools/build_telegram.py`, then use a separate CubeIDE launch
+for `BuildTelegram/CG2028_Assignment.elf` with automatic building disabled.
+The ordinary managed `Debug` rebuild does not provide this build setup.
+Sampling remains **100 ms**, UART remains **115200 baud**, and each axis retains
+the **25% EWMA** filter. Old `Avg` serial output is rejected explicitly.
 
-The [Prototype 2 guide](../docs/prototype-2.md) explains the detector, LED behavior
+The [Prototype 3 guide](../docs/prototype-3.md) explains the detector, LED behavior
 and board-reset procedure. The recording mode affects where data is stored and
 what labels you must provide; it does not reconfigure the detector.
 
 ## Start a recording
 
-1. Build/run `CG2028_Assignment` on the board and click Resume in CubeIDE if it
-   is paused at `main()`.
+1. Build and flash the current firmware using the linked instructions. Click
+   **Resume** / **F8** if CubeIDE pauses at `main()`. Python does not start or
+   flash the board.
 2. Close CubeIDE's serial terminal, `screen`, PuTTY, or any other serial viewer so
    the logger can own the port. On Windows, find the board under **Device Manager
    → Ports (COM & LPT)**.
@@ -68,25 +68,16 @@ On Windows, automatic detection reads the registered COM ports. If exactly one i
 present it is selected; if there is more than one, choose the board explicitly:
 
 ```powershell
-python tools\record_activity.py --port COM3 --activity normal-walking --notes "Trial 1"
+python tools\record_activity.py --test --verdict normal --port COM3 --name normal-walking --notes "Trial 1"
 ```
 
 If no Windows port is found, check **Device Manager → Ports (COM & LPT)** and
 rerun with that `COMx` name. CubeIDE's serial terminal, PuTTY, and other serial
 monitors must release the port before recording.
 
-Watch the readings and saved-row count in Terminal. **Each run automatically
-stops after 30 seconds**, keeping every complete sample saved to SQLite and CSV.
-The timer starts when the recording session opens, including time spent waiting
-for the board, so resume the board before starting. Partial samples at the time
-limit are discarded. The board continues running after the logger stops.
-You can **press Ctrl+C to stop early**; there is no `screen` shortcut involved.
-An explicit `--duration 60` overrides the default for a one-minute recording.
-If `--samples` is supplied, recording ends at that count or the time limit,
-whichever happens first.
-The logger enables Ctrl+C handling and normal newline output on its interactive
-terminal at startup, including when an earlier program left those settings
-disabled. Redirected files and pipes are left alone.
+Watch the saved-reading counter in Terminal. Stopping depends on the selected
+mode, as shown below. **Ctrl+C stops recording and retains saved data**; it does
+not stop the board or require a `screen` shortcut.
 
 The board **and this logger** must be running and connected to record. Nothing is
 recorded while the logger is closed, the board is paused, or the computer sleeps.
@@ -114,8 +105,13 @@ separately, and the run stops so you can hold the PC13 user button for two
 seconds (or reset the board). The STM32 continues
 running. Free mode rejects `--duration` and `--samples`.
 
-For a Long Lie demonstration, use a test recording of at least 60 seconds:
-`python3 tools/record_activity.py --test --name long-lie-demo --verdict fall --duration 60`.
+For a Long Lie demonstration, use a 90-second test to leave time for setup,
+detection and the subsequent quiet period:
+
+```bash
+python3 tools/record_activity.py --test --name long-lie-demo --verdict fall --duration 90
+```
+
 Free mode stops on the first fall. The 30-second Long Lie threshold is an
 experimental demo setting, not a validated measure of a person's condition.
 The fall LED toggles every 50 ms; Long Lie gives two short flashes per second.
@@ -153,6 +149,31 @@ warnings, still print separately. Full sensor values continue to be saved, and
 test/free databases retain their received diagnostics. Redirected console output
 uses plain lines without terminal control codes. This display change needs no
 firmware upload and does not change recording duration or detector behavior.
+
+### Telegram delivery
+
+Create your bot with BotFather, send `/start` to the actual bot, enter settings
+in the ignored local header, and build/flash using the
+[Telegram setup guide](../README.md#local-setup-and-build-on-mac). For an existing
+teammate bot, use its agreed shared token and your verified recipient chat ID.
+The helper's `send-test` message comes from your computer, not the STM32.
+
+The STM32 sends fall and Long Lie messages directly over its configured
+**2.4 GHz WPA2 Wi-Fi** connection. It does not need the Python recorder to send
+them. Python displays safe `ALERT` and `WIFI` diagnostics alongside the live
+counter; these lines do not become sensor readings or alter the measurement
+CSV columns. `ALERT Network=AP_CONNECTED Code=0` means Wi-Fi connected;
+`ALERT Network=DELIVERED Code=0` means Telegram accepted an alert.
+`PENDING` / `RETRY_PENDING` is not delivery confirmation. Check your Telegram
+chat for the message.
+
+Long Lie requires **30 consecutive complete quiet seconds after a fall**.
+This interval is independent of the recording timer. Use the 90-second test
+above to save both events: `--free` stops the recorder at the first fall even
+though the running board can still send its later message. Hold the **PC13 user
+button for two seconds** after an alarm, then wait for `READY`, to start a new
+episode. A board reset also restarts it; a sensor fault requires attention and
+is not repaired by the button.
 
 ## Files created and retained
 
@@ -202,14 +223,18 @@ updates from the messages received, independently of your expected label.
 An explicit `POSSIBLE_FALL` or `NEAR_FALL` is recorded, both together produce
 `MIXED_DECISIONS`, and an unconfirmed latched-alarm status is distinguished from a
 new event. Incomplete observation, uncertainty and sensor faults are retained.
-In Prototype 2, `SPIKE` is provisional. `DISTURBANCE_REJECTED` means the
-baseline comparison did not qualify the candidate; it is not a near-fall.
+In Prototype 3, `SPIKE` starts an observation. The two-second comparison emits
+`DISTURBANCE_CONFIRMED` for a ratio at least 4, or `DISTURBANCE_LOW` for a lower
+ratio; **both remain in `OBSERVING`**. Three later quiet blocks can produce
+`POSSIBLE_FALL` with either ratio. Three moving blocks produce `NEAR_FALL` for
+the higher ratio, or neutral `MOVEMENT_CONTINUED` for the lower ratio.
 `DISTURBANCE_UNKNOWN` means the comparison lacked usable evidence, and the
 detector returns to warmup. An unknown candidate remains
 `OBSERVATION_INCOMPLETE` in the saved summary even after a later `READY`, unless
-an explicit decision takes precedence. A rejected candidate can leave
-`NO_EVENT_OBSERVED`; that is not proof of ordinary activity. See the
-[gate and timing explanation](../docs/prototype-2.md#the-baseline-comparison).
+an explicit decision takes precedence. Older Prototype 2
+`DISTURBANCE_REJECTED` messages remain readable as historical outcomes; the
+current firmware no longer rejects a valid candidate just because its ratio
+is low. See the [decision and timing explanation](../docs/prototype-3.md#decision-timing).
 See the [verdict fields and definitions](../data/README.md#reading-the-prototype-verdicts).
 
 `run_id` links each test's `runs`, `test_samples` and `events` rows in the same
@@ -371,7 +396,7 @@ a large movement:
 `0, 0, 10, 0, 0` has zero fitted slope at equally spaced times. Magnitude alone
 cannot identify a fall; ordinary handling can also cause large readings. A recent
 peak measurement could be added later. The experimental fall-decision logic is
-described in the [Prototype 2 guide](../docs/prototype-2.md).
+described in the [Prototype 3 guide](../docs/prototype-3.md).
 
 ## Useful commands
 
