@@ -38,18 +38,18 @@
 @   R1  = old_output; intermediate multiplied by (100-alpha)
 @   R2  = alpha_percent (unchanged)
 @   R3  = constant 100
-    R12 = 100 - alpha
+@   R12 = 100 - alpha_percent
 @
 @ Write your program from here.
 .thumb_func
 ewma_filter:
 
-    MOV R3, #100
-    SUB R12, R4, R2
-    MUL R1, R3, R1
-    MLA R0, R0, R2, R1
-    SDIV R0, R0, R4
+    MOV R3, #100            @ Constant divisor and total percentage
+    SUB R12, R3, R2         @ R12 = 100 - alpha_percent
+    MUL R1, R12, R1         @ R1 = (100 - alpha_percent) * old_output
+    MLA R0, R0, R2, R1      @ R0 = alpha_percent * new_data + weighted old_output
+    SDIV R0, R0, R3         @ Divide once by 100; truncate towards zero
 
-    BX LR
+    BX LR                  @ Leaf function: R4-R11 and the stack are untouched
 
 .size ewma_filter, .-ewma_filter
