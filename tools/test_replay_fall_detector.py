@@ -11,14 +11,14 @@ import unittest
 import replay_fall_detector as replay
 
 
-def sample(index, *, session=1, accel=0.0):
+def sample(index, *, session=1, accel=0.0, gyro_msd=0.0, gyro_magnitude=1.5):
     return {
         "record_id": index + 1000, "session_id": session,
         "sample_number": index, "board_time_ms": index * 100,
         "accel_x_mps2": 0.0, "accel_y_mps2": 0.0, "accel_z_mps2": 9.8,
         "accel_magnitude_mps2": 9.8, "gyro_x_dps": 0.0,
-        "gyro_y_dps": 0.0, "gyro_z_dps": 1.5, "gyro_magnitude_dps": 1.5,
-        "accel_msd": accel, "gyro_msd": 0.0,
+        "gyro_y_dps": 0.0, "gyro_z_dps": gyro_magnitude, "gyro_magnitude_dps": gyro_magnitude,
+        "accel_msd": accel, "gyro_msd": gyro_msd,
     }
 
 
@@ -35,12 +35,47 @@ class ActualCReplayTests(unittest.TestCase):
         self.assertEqual(events[-1]["board_time_ms"] - events[1]["board_time_ms"], 8000)
         self.assertEqual(diagnostics[1]["final_state"], "FALL_LATCHED")
 
-    def test_sustained_running_rejected_without_near_fall_or_repeated_trigger(self):
-        events, diagnostics = replay.replay([{"id": 1}], [sample(index, accel=8) for index in range(160)])
-        self.assertEqual([event["event"] for event in events], ["READY", "SPIKE", "DISTURBANCE_REJECTED"])
+    def test_low_ratio_sustained_movement_resolves_neutrally_after_observation(self):
+        readings = [sample(index, accel=8, gyro_msd=2, gyro_magnitude=6) for index in range(160)]
+        events, diagnostics = replay.replay([{"id": 1}], readings)
+        self.assertEqual([event["event"] for event in events],
+                         ["READY", "SPIKE", "DISTURBANCE_LOW", "MOVEMENT_CONTINUED"])
+        self.assertEqual(events[2]["state"], "OBSERVING")
         self.assertEqual(events[-1]["disturbance_ratio"], 1.0)
+        self.assertEqual(events[-1]["board_time_ms"] - events[1]["board_time_ms"], 8000)
         self.assertEqual(diagnostics[1]["final_state"], "NORMAL")
         self.assertEqual(diagnostics[1]["final_fall_latched"], 0)
+
+    def test_low_ratio_followed_by_quiet_still_latches_fall(self):
+        readings = [sample(index, accel=8 if index < 71 else 0) for index in range(132)]
+        events, diagnostics = replay.replay([{"id": 1}], readings)
+        self.assertEqual([event["event"] for event in events],
+                         ["READY", "SPIKE", "DISTURBANCE_LOW", "FALL"])
+        self.assertEqual(events[2]["disturbance_ratio"], 1.0)
+        self.assertEqual(events[2]["state"], "OBSERVING")
+        self.assertEqual(events[-1]["board_time_ms"] - events[1]["board_time_ms"], 8000)
+        self.assertEqual(diagnostics[1]["final_state"], "FALL_LATCHED")
+
+    def test_high_ratio_followed_by_movement_retains_near_fall_label(self):
+        readings = [sample(index, accel=2 if index <= 50 else 8,
+                           gyro_msd=2, gyro_magnitude=6) for index in range(132)]
+        events, diagnostics = replay.replay([{"id": 1}], readings)
+        self.assertEqual([event["event"] for event in events],
+                         ["READY", "SPIKE", "DISTURBANCE_CONFIRMED", "NEAR_FALL"])
+        self.assertEqual(events[2]["disturbance_ratio"], 4.0)
+        self.assertEqual(diagnostics[1]["final_state"], "NORMAL")
+
+    def test_low_ratio_capture_ending_before_observation_is_incomplete(self):
+        readings = [sample(index, accel=8) for index in range(80)]
+        events, diagnostics = replay.replay([{"id": 1}], readings)
+        self.assertEqual([event["event"] for event in events],
+                         ["READY", "SPIKE", "DISTURBANCE_LOW"])
+        self.assertEqual(diagnostics[1]["final_state"], "OBSERVING")
+        output = io.StringIO()
+        with redirect_stdout(output):
+            replay.print_summary([{"id": 1}], events, diagnostics)
+        self.assertIn("OBSERVATION INCOMPLETE; OBSERVING", output.getvalue())
+        self.assertNotIn("DISTURBANCES REJECTED;", output.getvalue())
 
     def test_truncated_candidate_stays_explicitly_incomplete(self):
         readings = [sample(index, accel=2 if index <= 50 else 8) for index in range(60)]
@@ -96,7 +131,8 @@ class StorageAdapterTests(unittest.TestCase):
         sessions = [{"id": sid} for sid in [*range(1, 36), 55]]
         events = []
         for sid in range(21, 36):
-            for name, time in (("SPIKE", 10000), ("DISTURBANCE_CONFIRMED", 12000),
+            gate = "DISTURBANCE_LOW" if sid <= 30 else "DISTURBANCE_CONFIRMED"
+            for name, time in (("SPIKE", 10000), (gate, 12000),
                                ("FALL" if sid <= 30 else "NEAR_FALL", 18000)):
                 events.append({"session_id": sid, "event": name, "board_time_ms": time})
         # An extra capture is intentionally unfinished and should not be
@@ -104,6 +140,27 @@ class StorageAdapterTests(unittest.TestCase):
         events.append({"session_id": 55, "event": "SPIKE", "board_time_ms": 100})
         diagnostics = {session["id"]: {"invalid": 0} for session in sessions}
         replay.check_calibration(sessions, events, diagnostics)
+
+    def test_neutral_movement_summary_is_not_a_near_fall_or_rejection(self):
+        diagnostics = {1: {"rows": 132, "gaps": 0, "invalid": 0, "final_state": "NORMAL"}}
+        events = [{"session_id": 1, "event": name, "board_time_ms": tick} for name, tick in
+                  (("SPIKE", 5100), ("DISTURBANCE_LOW", 7100), ("MOVEMENT_CONTINUED", 13100))]
+        output = io.StringIO()
+        with redirect_stdout(output):
+            replay.print_summary([{"id": 1}], events, diagnostics)
+        self.assertIn("MOVEMENT_CONTINUED (8.000 s); NORMAL", output.getvalue())
+        self.assertNotIn("NEAR_FALL", output.getvalue())
+        self.assertNotIn("DISTURBANCES REJECTED;", output.getvalue())
+
+    def test_earlier_neutral_resolution_does_not_hide_pending_candidate(self):
+        diagnostics = {1: {"rows": 150, "gaps": 0, "invalid": 0, "final_state": "OBSERVING"}}
+        events = [{"session_id": 1, "event": name, "board_time_ms": tick} for name, tick in
+                  (("SPIKE", 5100), ("DISTURBANCE_LOW", 7100),
+                   ("MOVEMENT_CONTINUED", 13100), ("SPIKE", 14000))]
+        output = io.StringIO()
+        with redirect_stdout(output):
+            replay.print_summary([{"id": 1}], events, diagnostics)
+        self.assertIn("MOVEMENT_CONTINUED -> OBSERVATION INCOMPLETE; OBSERVING", output.getvalue())
 
     def test_missing_database_is_never_created(self):
         with self.assertRaisesRegex(ValueError, "does not exist"):

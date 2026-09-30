@@ -307,6 +307,15 @@ static FallDetectorEvent gate(FallDetector *detector, uint32_t began,
     return reading(detector, began + 2000, boundary_value, 2, 10);
 }
 
+static FallDetectorEvent finish_observation(FallDetector *detector, uint32_t began,
+                                           double accel, double gyro, double magnitude)
+{
+    /* The relative-strength result must be emitted only once, including LOW. */
+    for (uint32_t elapsed = 2100; elapsed < 8000; elapsed += 100)
+        assert(reading(detector, began + elapsed, accel, gyro, magnitude) == FALL_EVENT_NONE);
+    return reading(detector, began + 8000, accel, gyro, magnitude);
+}
+
 static void relative_disturbance_boundary_and_trigger_exclusion(void)
 {
     FallDetector detector;
@@ -317,25 +326,81 @@ static void relative_disturbance_boundary_and_trigger_exclusion(void)
     assert(detector.event_accel_msd_mean == 8);
     assert(detector.disturbance_ratio == 4);
     assert(detector.state == FALL_STATE_OBSERVING);
+    assert(finish_observation(&detector, began, 0.02, 4, 12) == FALL_EVENT_NEAR_FALL);
 
     began = ready_with_baseline(&detector, 2);
-    assert(gate(&detector, began, 7.999, 1000) == FALL_EVENT_DISTURBANCE_REJECTED);
-    assert(detector.state == FALL_STATE_NORMAL);
+    assert(gate(&detector, began, 7.999, 1000) == FALL_EVENT_DISTURBANCE_LOW);
+    assert(detector.state == FALL_STATE_OBSERVING);
+    assert(detector.disturbance_evaluated && !detector.disturbance_confirmed);
     assert(!detector.fall_latched);
-    assert(reading(&detector, began + 2100, 8, 2, 10) == FALL_EVENT_NONE);
-    assert(reading(&detector, began + 2200, 4.9, 2, 10) == FALL_EVENT_NONE);
-    assert(reading(&detector, began + 2300, 8, 2, 10) == FALL_EVENT_SPIKE);
+    assert(finish_observation(&detector, began, 0.02, 4, 12) == FALL_EVENT_MOVEMENT_CONTINUED);
+    assert(detector.state == FALL_STATE_NORMAL && !detector.fall_latched);
+    assert(detector.candidate_baseline_mean == 2);
+    assert(detector.event_accel_msd_mean == 7.999);
+    /* Both types of motion resolution require release before another spike. */
+    assert(reading(&detector, began + 8100, 8, 2, 10) == FALL_EVENT_NONE);
+    assert(reading(&detector, began + 8200, 4.9, 2, 10) == FALL_EVENT_NONE);
+    assert(reading(&detector, began + 8300, 8, 2, 10) == FALL_EVENT_SPIKE);
+    assert(!detector.disturbance_evaluated && !detector.disturbance_confirmed);
 }
 
-static void sustained_high_motion_is_rejected_not_a_near_fall(void)
+static void sustained_high_motion_gets_neutral_movement_label(void)
 {
     FallDetector detector;
     uint32_t began = ready_with_baseline(&detector, 8);
-    assert(gate(&detector, began, 8, 8) == FALL_EVENT_DISTURBANCE_REJECTED);
+    assert(gate(&detector, began, 8, 8) == FALL_EVENT_DISTURBANCE_LOW);
     assert(detector.disturbance_ratio == 1);
-    for (uint32_t elapsed = 2100; elapsed < 12000; elapsed += 100)
+    assert(finish_observation(&detector, began, 8, 1000, 50) == FALL_EVENT_MOVEMENT_CONTINUED);
+    for (uint32_t elapsed = 8100; elapsed < 12000; elapsed += 100)
         assert(reading(&detector, began + elapsed, 8, 1000, 50) == FALL_EVENT_NONE);
     assert(detector.state == FALL_STATE_NORMAL && !detector.fall_latched);
+}
+
+static void low_relative_increase_does_not_veto_a_fall(void)
+{
+    FallDetector detector;
+    uint32_t began = ready_with_baseline(&detector, 8);
+    assert(gate(&detector, began, 8, 0) == FALL_EVENT_DISTURBANCE_LOW);
+    assert(finish_observation(&detector, began, 0, 0, 1.5) == FALL_EVENT_FALL);
+    assert(detector.fall_latched && detector.state == FALL_STATE_FALL_LATCHED);
+    assert(detector.disturbance_ratio == 1 && !detector.disturbance_confirmed);
+}
+
+static void low_relative_increase_keeps_mixed_evidence_uncertain(void)
+{
+    for (unsigned moving = 0; moving < 2; moving++)
+    {
+        FallDetector detector;
+        uint32_t began = ready_with_baseline(&detector, 2);
+        assert(gate(&detector, began, 6, 0) == FALL_EVENT_DISTURBANCE_LOW);
+        assert(finish_observation(&detector, began, 0, 3, 1.5) == FALL_EVENT_UNCERTAIN);
+        assert(!detector.fall_latched && detector.state == FALL_STATE_UNCERTAIN);
+        /* Keep one more whole block mixed, then supply three agreeing blocks. */
+        for (uint32_t elapsed = 8100; elapsed < 9000; elapsed += 100)
+            assert(reading(&detector, began + elapsed, 0, 3, 1.5) == FALL_EVENT_NONE);
+        for (uint32_t elapsed = 9000; elapsed < 12000; elapsed += 100)
+            assert(reading(&detector, began + elapsed,
+                           moving ? 0.02 : 0, moving ? 4 : 0, moving ? 12 : 1.5)
+                   == FALL_EVENT_NONE);
+        assert(reading(&detector, began + 12000, 0, 0, 1.5) ==
+               (moving ? FALL_EVENT_MOVEMENT_CONTINUED : FALL_EVENT_FALL));
+        assert(detector.fall_latched == !moving);
+    }
+}
+
+static void low_relative_increase_still_respects_faults_and_gaps(void)
+{
+    FallDetector detector;
+    uint32_t began = ready_with_baseline(&detector, 2);
+    assert(gate(&detector, began, 6, 0) == FALL_EVENT_DISTURBANCE_LOW);
+    assert(reading(&detector, began + 2300, 0, 0, 1.5) == FALL_EVENT_RESTARTED);
+    assert(detector.state == FALL_STATE_WARMUP && !detector.fall_latched);
+    assert(!detector.disturbance_evaluated && !detector.disturbance_confirmed);
+
+    began = ready_with_baseline(&detector, 2);
+    assert(gate(&detector, began, 6, 0) == FALL_EVENT_DISTURBANCE_LOW);
+    assert(reading(&detector, began + 2100, NAN, 0, 1.5) == FALL_EVENT_SENSOR_FAULT);
+    assert(detector.state == FALL_STATE_SENSOR_FAULT && !detector.fall_latched);
 }
 
 static void noise_floor_and_first_trigger_sample_contribute(void)
@@ -459,12 +524,15 @@ int main(void)
     incomplete_blocks_cannot_prove_stillness();
     unsigned_tick_wrap_preserves_elapsed_time();
     relative_disturbance_boundary_and_trigger_exclusion();
-    sustained_high_motion_is_rejected_not_a_near_fall();
+    sustained_high_motion_gets_neutral_movement_label();
+    low_relative_increase_does_not_veto_a_fall();
+    low_relative_increase_keeps_mixed_evidence_uncertain();
+    low_relative_increase_still_respects_faults_and_gaps();
     noise_floor_and_first_trigger_sample_contribute();
     settling_is_excluded_and_baseline_rolls_forward();
     inadequate_event_coverage_is_unknown_and_rewarms();
     duplicated_timestamps_cannot_supply_event_evidence();
     baseline_coverage_boundaries_and_unknown_history();
-    puts("Fall detector: 17 test groups passed.");
+    puts("Fall detector: 20 test groups passed.");
     return 0;
 }

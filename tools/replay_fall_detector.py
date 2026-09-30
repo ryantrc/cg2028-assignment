@@ -32,7 +32,7 @@ MEASUREMENT_FIELDS = (
     "gyro_x_dps", "gyro_y_dps", "gyro_z_dps", "gyro_magnitude_dps",
 )
 AXIS_FIELDS = tuple(field for field in MEASUREMENT_FIELDS if "magnitude" not in field)
-DECISION_EVENTS = {"FALL", "NEAR_FALL", "UNCERTAIN"}
+DECISION_EVENTS = {"FALL", "NEAR_FALL", "UNCERTAIN", "MOVEMENT_CONTINUED"}
 
 # This adapter only transports inputs and events. All detection decisions come
 # from the firmware header, not a separately implemented Python classifier.
@@ -57,6 +57,8 @@ static const char *event_name(FallDetectorEvent event)
     case FALL_EVENT_SENSOR_FAULT: return "SENSOR_FAULT";
     case FALL_EVENT_RESTARTED: return "RESTARTED";
     case FALL_EVENT_DISTURBANCE_CONFIRMED: return "DISTURBANCE_CONFIRMED";
+    case FALL_EVENT_DISTURBANCE_LOW: return "DISTURBANCE_LOW";
+    case FALL_EVENT_MOVEMENT_CONTINUED: return "MOVEMENT_CONTINUED";
     case FALL_EVENT_DISTURBANCE_REJECTED: return "DISTURBANCE_REJECTED";
     case FALL_EVENT_DISTURBANCE_UNKNOWN: return "DISTURBANCE_UNKNOWN";
     default: return "UNKNOWN";
@@ -250,9 +252,10 @@ def check_calibration(sessions, events, diagnostics):
         spikes = [event for event in found if event["event"] == "SPIKE"]
         decisions = [event for event in found if event["event"] in DECISION_EVENTS]
         expected = [] if sid <= 20 else ["FALL"] if sid <= 30 else ["NEAR_FALL"]
-        confirmed = [event for event in found if event["event"] == "DISTURBANCE_CONFIRMED"]
-        if len(confirmed) != len(expected):
-            failures.append(f"session {sid}: disturbance confirmations={len(confirmed)}")
+        evaluated = [event for event in found if event["event"] in
+                     {"DISTURBANCE_CONFIRMED", "DISTURBANCE_LOW"}]
+        if len(evaluated) != len(expected):
+            failures.append(f"session {sid}: disturbance evaluations={len(evaluated)}")
         if [event["event"] for event in decisions] != expected or len(spikes) != len(expected):
             failures.append(f"session {sid}: spikes={len(spikes)}, decisions={[event['event'] for event in decisions]}")
         if diagnostics[sid]["invalid"] or any(event["event"] == "SENSOR_FAULT" for event in found):
@@ -267,21 +270,25 @@ def check_calibration(sessions, events, diagnostics):
 
 def print_summary(sessions, events, diagnostics):
     print("Actual C detector replay (saved EWMA metrics; SQLite opened read-only)")
-    print("Session/run  Rows Gaps Invalid Spikes Confirm Reject Unknown  Outcome; final state")
+    print("Session/run  Rows Gaps Invalid Spikes Confirm Low Neutral Reject Unknown  Outcome; final state")
     for session in sessions:
         sid = session["id"]
         found = [event for event in events if event["session_id"] == sid]
         spikes = [event for event in found if event["event"] == "SPIKE"]
         decisions = [event for event in found if event["event"] in DECISION_EVENTS]
         confirmed = sum(event["event"] == "DISTURBANCE_CONFIRMED" for event in found)
+        low = sum(event["event"] == "DISTURBANCE_LOW" for event in found)
+        neutral = sum(event["event"] == "MOVEMENT_CONTINUED" for event in found)
         rejected = sum(event["event"] == "DISTURBANCE_REJECTED" for event in found)
         unknown = sum(event["event"] == "DISTURBANCE_UNKNOWN" for event in found)
         outcome = "NO EVENT"
         if decisions:
             outcome = " -> ".join(event["event"] for event in decisions)
-            if spikes:
+            if len(spikes) == 1:
                 delay = (decisions[-1]["board_time_ms"] - spikes[0]["board_time_ms"]) & UINT32_MASK
                 outcome += f" ({delay / 1000:.3f} s)"
+            if diagnostics[sid].get("final_state") == "OBSERVING":
+                outcome += " -> OBSERVATION INCOMPLETE"
         elif diagnostics[sid].get("final_state") == "OBSERVING":
             outcome = "OBSERVATION INCOMPLETE"
         elif unknown or diagnostics[sid].get("final_state") == "WARMUP":
@@ -294,11 +301,13 @@ def print_summary(sessions, events, diagnostics):
             outcome += "; SENSOR_FAULT"
         info = diagnostics[sid]
         print(f"{sid:11d} {info['rows']:5d} {info['gaps']:4d} {info['invalid']:7d} {len(spikes):6d} "
-              f"{confirmed:7d} {rejected:6d} {unknown:7d}  {outcome}; {info.get('final_state', 'NO SAMPLES')}")
+              f"{confirmed:7d} {low:3d} {neutral:7d} {rejected:6d} {unknown:7d}  "
+              f"{outcome}; {info.get('final_state', 'NO SAMPLES')}")
     print("Gaps restart detector warmup; stale prefixes are not joined to later samples.")
     print("Replay uses saved rounded metrics and cannot reproduce sensor reads or EWMA resets.")
     print("Every capture starts with fresh state; pre-capture detector history and inherited alarms are unavailable.")
     print("A candidate still OBSERVING at the last sample has no final verdict in this replay.")
+    print("LOW records a sub-threshold disturbance ratio; observation continues. MOVEMENT_CONTINUED is a neutral resolution.")
     print("These recordings informed the thresholds: this is a calibration check, not accuracy validation.")
 
 

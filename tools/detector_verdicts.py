@@ -66,8 +66,10 @@ EVENT_STATES = {
     "POSSIBLE_FALL": "FALL_LATCHED", "UNCERTAIN": "UNCERTAIN",
     "RESTARTED": "WARMUP",
     "DISTURBANCE_CONFIRMED": "OBSERVING",
+    "DISTURBANCE_LOW": "OBSERVING",
     "DISTURBANCE_REJECTED": "NORMAL",
     "DISTURBANCE_UNKNOWN": "WARMUP",
+    "MOVEMENT_CONTINUED": "NORMAL",
     "LONG_LIE": "LONG_LIE",
 }
 EVENTS = frozenset((*EVENT_STATES, "STATUS", "SENSOR_FAULT", "MANUAL_RESET"))
@@ -157,10 +159,11 @@ def parse_diagnostic(line):
 def _observation_history(events):
     """Track observed candidates without inventing missing firmware decisions.
 
-    A rejected Prototype 2 candidate is complete, even though it produced no
-    fall/near-fall verdict. A later rejection cannot explain an earlier candidate
-    whose resolution was missed. UNKNOWN explicitly leaves insufficient evidence
-    in this recording, even after the firmware has warmed up again.
+    A rejected Prototype 2 candidate or a Prototype 3 MOVEMENT_CONTINUED event
+    completes its candidate without a fall/near-fall verdict. DISTURBANCE_LOW
+    keeps observing. A later resolution cannot explain an earlier candidate
+    whose resolution was missed. UNKNOWN leaves insufficient evidence in this
+    recording, even after the firmware has warmed up again.
     """
     candidate_open = unresolved = unknown = False
     for diagnostic in events:
@@ -168,7 +171,7 @@ def _observation_history(events):
         if event == "DISTURBANCE_UNKNOWN":
             unresolved = unknown = True
             candidate_open = False
-        elif event in ("DISTURBANCE_REJECTED", "NEAR_FALL", "POSSIBLE_FALL"):
+        elif event in ("DISTURBANCE_REJECTED", "MOVEMENT_CONTINUED", "NEAR_FALL", "POSSIBLE_FALL"):
             # Accept a resolution even if recording started after its SPIKE.
             candidate_open = False
         elif event == "SPIKE":
@@ -176,7 +179,7 @@ def _observation_history(events):
             unresolved |= candidate_open
             candidate_open = True
         elif state in ("OBSERVING", "UNCERTAIN"):
-            # STATUS or CONFIRMED can reveal a candidate whose SPIKE was missed.
+            # STATUS/CONFIRMED/LOW can reveal a candidate whose SPIKE was missed.
             candidate_open = True
         elif candidate_open:
             # NORMAL/WARMUP/FAULT alone do not say how the candidate ended.
@@ -249,6 +252,9 @@ def _summary(historical, events):
         verdict, source = "WARMUP_INCOMPLETE", "FIRMWARE_DIAGNOSTICS"
     elif unresolved:
         verdict, source = "OBSERVATION_INCOMPLETE", "FIRMWARE_DIAGNOSTICS"
+    elif any(event["event"] == "MOVEMENT_CONTINUED" for event in valid):
+        # Explicit continued movement is neutral, not proof of normal activity.
+        verdict, source = "MOVEMENT_CONTINUED", "FIRMWARE_EVENT"
     else:
         # This means no decision was observed, not that the person was normal.
         verdict, source = "NO_EVENT_OBSERVED", "FIRMWARE_DIAGNOSTICS"

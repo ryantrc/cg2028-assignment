@@ -27,12 +27,13 @@ The previous mixed dataset is also preserved in the
 
 ## Start and name a recording
 
-1. Rebuild and flash `CG2028_Assignment` with Prototype 2 in CubeIDE, then
-   resume it. It prints `Magnitude`, `MagnitudeSlope` and `DETECTOR` messages.
-   Reset the board between tests to clear a previous latched alarm. This
-   firmware change adds the baseline comparison described in the
-   [Prototype 2 guide](../docs/prototype-2.md); updating Python alone does not
-   install it on the board.
+1. Rebuild Prototype 3 using `python3 tools/build_telegram.py`, then load
+   `BuildTelegram/CG2028_Assignment.elf` with the existing Telegram CubeIDE
+   launch and resume it. Keep automatic building disabled; see the
+   [build and flash steps](../README.md#3-build-and-flash). Reset the board
+   between trials, or hold PC13 for two seconds after an alarm. The
+   [Prototype 3 guide](../docs/prototype-3.md) explains the updated decision
+   rule; updating Python alone does not install it on the board.
 2. Close `screen` or any other program using the board's serial port.
 3. From the repository root (`cg2028-Assignment`), choose a command below.
 
@@ -46,7 +47,7 @@ mode destinations are unchanged.
 For a labelled test:
 
 ```bash
-python3 tools/record_activity.py --test --name fall-test-3 --verdict near-fall \
+python3 tools/record_activity.py --test --name fall-test-3 --verdict near-fall --duration 90 \
   --notes "Trial 3: board moved by hand; sudden movement then recovery"
 ```
 
@@ -180,7 +181,7 @@ Start with these fields:
 | `verdict_source` | `FIRMWARE_EVENT` for explicit decisions, `FIRMWARE_STATUS` for observed alarm state, `FIRMWARE_EVENT_AND_STATUS` when both are needed, `FIRMWARE_DIAGNOSTICS` for other usable status, or `NONE`/`NOT_RECORDED`. |
 | `recording_status` | `OPEN` while active or left unfinished; `FINISHED` after the recorder saves its end metadata. |
 | `sample_count`, `started_at_utc`, `ended_at_utc`, `stop_reason` | Saved reading count and recording boundaries; count/end fields are finalized when the run closes. |
-| `spike_count`, `possible_fall_count`, `near_fall_count`, `uncertain_count` | Counts of explicit firmware events, not counts of repeated status messages. In Prototype 2, a spike is provisional and may be rejected by the baseline comparison. |
+| `spike_count`, `possible_fall_count`, `near_fall_count`, `uncertain_count` | Counts of explicit firmware events, not counts of repeated status messages. A spike starts a candidate; a low Prototype 3 baseline ratio no longer rejects it. |
 | `sensor_health`, `fault_diagnostic_count` | Observed faults remain visible even when the run has a fall or near-fall verdict. |
 | `diagnostic_coverage`, `invalid_diagnostic_count` | Whether diagnostics were received and whether any failed parsing; `OBSERVED` does not guarantee that every message was captured. |
 | `last_state`, `last_alarm`, `last_sensors` | Last usable board status; this can differ from an earlier decision summarized for the run. |
@@ -196,6 +197,7 @@ plus `run_id`, `legacy_record_id`, `expected_verdict` and `port`.
 |---|---|
 | `POSSIBLE_FALL` | The recorder received an explicit possible-fall event during this recording. |
 | `NEAR_FALL` | It received an explicit near-fall event during this recording. |
+| `MOVEMENT_CONTINUED` | It received the neutral completion of a low-ratio candidate after three moving blocks. This is not a near-fall or proof that no fall occurred. |
 | `NEAR_FALL_WITH_LATCHED_ALARM` | It received a near-fall event and also observed a latched alarm, without capturing an explicit possible-fall event. Inspect the timeline; this is not a plain near-fall result. |
 | `MIXED_DECISIONS` | It received both kinds of event in the same recording; inspect the detailed events. |
 | `PREEXISTING_LATCHED_ALARM` | The first usable detector message already reported a latched alarm, without an explicit new fall event. Reset the board before a fresh trial. |
@@ -215,22 +217,33 @@ latched-alarm status but no explicit possible-fall event produces
 Faults remain recorded separately even if a decision was captured. The detailed
 timeline is available when a single summary cannot explain everything that happened.
 
-Prototype 2 adds three events without changing recording destinations or CSV
-columns. `DISTURBANCE_CONFIRMED` keeps the candidate in `OBSERVING`;
-`DISTURBANCE_REJECTED` returns it to `NORMAL` and is never counted as a near-fall.
+Prototype 3 keeps the recording destinations and CSV columns unchanged.
+`DISTURBANCE_CONFIRMED` (ratio at least 4) and `DISTURBANCE_LOW` (ratio below 4)
+both keep a valid candidate in `OBSERVING`. Three later quiet blocks produce
+`POSSIBLE_FALL` regardless of the ratio. Three moving blocks produce `NEAR_FALL`
+for the higher ratio or `MOVEMENT_CONTINUED` for the lower ratio. The latter
+returns the board to `NORMAL` without an alarm or near-fall decision.
+When no higher-priority evidence exists, the test summary is
+`MOVEMENT_CONTINUED` with `verdict_source=FIRMWARE_EVENT`; later healthy status
+messages retain it. An unresolved candidate, current uncertainty, warmup or
+sensor fault takes precedence over that neutral result, as do explicit
+fall/near-fall decisions and latched alarms. A later candidate that is still
+open when recording ends is not hidden by an earlier movement completion.
 `DISTURBANCE_UNKNOWN` returns the board to `WARMUP` because the comparison lacked
 adequate evidence. That unknown candidate remains `OBSERVATION_INCOMPLETE` in
 the saved summary even after `READY`, unless an explicit fall/near-fall result
-takes precedence. A later candidate after a rejection can also leave the run
-incomplete if it does not resolve before recording ends.
+takes precedence. Historical Prototype 2 `DISTURBANCE_REJECTED` messages still
+mean that the old detector ended a low-ratio candidate. They are not rewritten
+as Prototype 3 outcomes.
 
-Confirmation/rejection messages include `BaselineMSD`, `EventMSD` and
+Confirmation/low-ratio messages include `BaselineMSD`, `EventMSD` and
 `IncreaseRatio`. They are retained in the original diagnostic lines in `events`
 (test mode) or `detector_events` (free mode), rather than new measurement CSV
-columns. Both provisional and confirmed candidates use `State=OBSERVING`, so
-inspect the events to determine whether the comparison passed. See
-[Prototype 2's baseline comparison](../docs/prototype-2.md#the-baseline-comparison)
-for the windows, threshold and unchanged eight-second decision timing.
+columns. Both high- and low-ratio candidates use `State=OBSERVING`, so inspect
+the events for their ratio and later result. `MOVEMENT_CONTINUED` uses the
+existing `observed_verdict` field; no new measurement or summary columns are
+added. See [Prototype 3's decision timing](../docs/prototype-3.md#decision-timing)
+for the unchanged windows and earliest eight-second decision.
 
 Observed verdicts come from received firmware messages, **not from your expected
 verdict, activity label or an offline replay of the readings**. A periodic latched-alarm status is
